@@ -9,6 +9,7 @@
 
 #include "augur/contexto.h"
 #include "augur/regras.h"
+#include "augur/stubs.h"
 #include "raylib.h"
 
 #include "core_interno.h"
@@ -138,6 +139,19 @@ static void atualizar_cena_combate(ContextoJogo* contexto)
 {
     atualizar_jogador_base(contexto);
 
+    /*
+     * Ordem de atualização combinada para o grupo:
+     * 1. jogador no core
+     * 2. waves
+     * 3. inimigos
+     * 4. magias
+     * 5. HUD
+     */
+    atualizar_stub_waves(contexto);
+    atualizar_stub_inimigos(contexto);
+    atualizar_stub_magias(contexto);
+    atualizar_stub_hud(contexto);
+
     if (contexto->entrada.confirmar) {
         contexto->estado_run.deve_ir_para_upgrade = true;
     }
@@ -160,6 +174,9 @@ static void atualizar_cena_combate(ContextoJogo* contexto)
 
 static void atualizar_cena_upgrade(ContextoJogo* contexto)
 {
+    atualizar_stub_cartas(contexto);
+    atualizar_stub_dados(contexto);
+
     if (contexto->entrada.confirmar) {
         contexto->estado_run.wave_atual += 1;
         trocar_cena(contexto, CENA_COMBATE);
@@ -205,6 +222,10 @@ static void desenhar_cena_combate(const ContextoJogo* contexto)
     desenhar_grade_mapa(contexto);
     DrawRectangleLinesEx(AREA_COMBATE, 3.0f, (Color){82, 146, 214, 255});
 
+    desenhar_stub_waves(contexto);
+    desenhar_stub_inimigos(contexto);
+    desenhar_stub_magias(contexto);
+
     DrawCircleV((Vector2){contexto->jogador.posicao_x, contexto->jogador.posicao_y},
                 contexto->jogador.raio_colisao, (Color){247, 208, 109, 255});
 
@@ -220,22 +241,16 @@ static void desenhar_cena_combate(const ContextoJogo* contexto)
     DrawText(TextFormat("Wave atual: %d", contexto->estado_run.wave_atual), 930, 28, 28, RAYWHITE);
     DrawText(TextFormat("Tempo da run: %.1f s", contexto->estado_run.tempo_da_run), 930, 60, 24,
              (Color){162, 170, 191, 255});
+    desenhar_stub_hud(contexto);
 }
 
 static void desenhar_cena_upgrade(const ContextoJogo* contexto)
 {
-    (void)contexto;
-
     desenhar_titulo_cena("Upgrade", "Placeholder guiado para o Dev 2 plugar cartas e dados.");
-    DrawRectangleRounded((Rectangle){92.0f, 240.0f, 330.0f, 220.0f}, 0.03f, 1, (Color){44, 52, 73, 255});
-    DrawRectangleRounded((Rectangle){446.0f, 240.0f, 330.0f, 220.0f}, 0.03f, 1, (Color){44, 52, 73, 255});
-    DrawRectangleRounded((Rectangle){800.0f, 240.0f, 330.0f, 220.0f}, 0.03f, 1, (Color){44, 52, 73, 255});
-
-    DrawText("Carta 1", 128, 280, 34, RAYWHITE);
-    DrawText("Carta 2", 482, 280, 34, RAYWHITE);
-    DrawText("Carta 3", 836, 280, 34, RAYWHITE);
-    DrawText("Enter ou Espaço: voltar ao combate", 92, 540, 24, RAYWHITE);
-    DrawText("Esc: ir para fim de jogo", 92, 574, 24, (Color){162, 170, 191, 255});
+    desenhar_stub_cartas(contexto);
+    desenhar_stub_dados(contexto);
+    DrawText("Enter ou Espaço: voltar ao combate", 92, 640, 24, RAYWHITE);
+    DrawText("Esc: ir para fim de jogo", 92, 674, 24, (Color){162, 170, 191, 255});
 }
 
 static void desenhar_cena_fim_de_jogo(const ContextoJogo* contexto)

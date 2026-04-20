@@ -14,6 +14,13 @@ Nesta etapa, o foco é deixar a base do Dev 1 pronta para integração:
 - regras base do jogo;
 - pontos de integração para os outros devs.
 
+## Controles da base atual
+
+- `Enter` ou `Espaço`: confirma a ação principal da cena atual
+- `Esc`: volta ou encerra a run, dependendo da cena
+- `WASD` ou setas: movem o jogador no combate
+- `F3`: alterna a camada de debug
+
 ## Estrutura de pastas
 
 ```text
@@ -78,5 +85,14 @@ Para executar:
 
 ## Situação atual da base
 
-No início do projeto, existe apenas uma estrutura mínima para compilar e organizar as próximas etapas.
-As funcionalidades jogáveis são adicionadas em commits separados para manter o histórico claro.
+O projeto já abre janela, troca de cenas, move o jogador, gera uma profecia determinística por seed
+e expõe stubs comentados para os outros devs encaixarem seus sistemas sem mexer na arquitetura.
+
+## Fluxo de integração do grupo
+
+- Dev 1: core, regras, profecia, build e integração final
+- Dev 2: cartas, dados, HUD, save e score
+- Dev 3: inimigos, magias, projéteis, waves e efeitos visuais
+
+O documento [docs/integracao.md](docs/integracao.md) resume os contratos compartilhados,
+a ordem de chamada no loop e os pontos onde cada dev deve entrar.
