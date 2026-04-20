@@ -16,6 +16,8 @@ bool colide_circulos(float centro_ax, float centro_ay, float raio_a,
                      float centro_bx, float centro_by, float raio_b);
 bool colide_retangulos(float retangulo_ax, float retangulo_ay, float largura_a, float altura_a,
                        float retangulo_bx, float retangulo_by, float largura_b, float altura_b);
-void limitar_jogador_na_tela(Jogador* jogador, int largura_tela, int altura_tela);
+void limitar_jogador_na_tela(Jogador* jogador, float origem_x, float origem_y,
+                             float largura_area, float altura_area);
+void preencher_mapa_colisao_base(int mapa[ALTURA_MAPA_COLISAO][LARGURA_MAPA_COLISAO]);
 
 #endif

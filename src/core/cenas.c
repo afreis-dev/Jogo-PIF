@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include "augur/contexto.h"
+#include "augur/regras.h"
 #include "raylib.h"
 
 #include "core_interno.h"
@@ -36,6 +37,29 @@ static void desenhar_titulo_cena(const char* titulo, const char* subtitulo)
 {
     DrawText(titulo, 90, 80, 54, RAYWHITE);
     DrawText(subtitulo, 92, 142, 22, (Color){162, 170, 191, 255});
+}
+
+static void desenhar_grade_mapa(const ContextoJogo* contexto)
+{
+    const float largura_celula = AREA_COMBATE.width / (float)LARGURA_MAPA_COLISAO;
+    const float altura_celula = AREA_COMBATE.height / (float)ALTURA_MAPA_COLISAO;
+
+    for (int linha = 0; linha < ALTURA_MAPA_COLISAO; ++linha) {
+        for (int coluna = 0; coluna < LARGURA_MAPA_COLISAO; ++coluna) {
+            const float posicao_x = AREA_COMBATE.x + (coluna * largura_celula);
+            const float posicao_y = AREA_COMBATE.y + (linha * altura_celula);
+            const int bloqueado = contexto->estado_run.mapa_colisao[linha][coluna];
+            const Color cor_celula = bloqueado
+                ? (Color){51, 62, 84, 255}
+                : (Color){25, 31, 44, 140};
+
+            DrawRectangle((int)posicao_x, (int)posicao_y,
+                          (int)(largura_celula + 1.0f), (int)(altura_celula + 1.0f), cor_celula);
+            DrawRectangleLines((int)posicao_x, (int)posicao_y,
+                               (int)largura_celula, (int)altura_celula,
+                               (Color){32, 41, 58, 130});
+        }
+    }
 }
 
 static void atualizar_jogador_base(ContextoJogo* contexto)
@@ -69,21 +93,8 @@ static void atualizar_jogador_base(ContextoJogo* contexto)
     contexto->jogador.posicao_x += direcao_x * velocidade * contexto->tempo_delta;
     contexto->jogador.posicao_y += direcao_y * velocidade * contexto->tempo_delta;
 
-    if (contexto->jogador.posicao_x < AREA_COMBATE.x + contexto->jogador.raio_colisao) {
-        contexto->jogador.posicao_x = AREA_COMBATE.x + contexto->jogador.raio_colisao;
-    }
-
-    if (contexto->jogador.posicao_x > AREA_COMBATE.x + AREA_COMBATE.width - contexto->jogador.raio_colisao) {
-        contexto->jogador.posicao_x = AREA_COMBATE.x + AREA_COMBATE.width - contexto->jogador.raio_colisao;
-    }
-
-    if (contexto->jogador.posicao_y < AREA_COMBATE.y + contexto->jogador.raio_colisao) {
-        contexto->jogador.posicao_y = AREA_COMBATE.y + contexto->jogador.raio_colisao;
-    }
-
-    if (contexto->jogador.posicao_y > AREA_COMBATE.y + AREA_COMBATE.height - contexto->jogador.raio_colisao) {
-        contexto->jogador.posicao_y = AREA_COMBATE.y + AREA_COMBATE.height - contexto->jogador.raio_colisao;
-    }
+    limitar_jogador_na_tela(&contexto->jogador, AREA_COMBATE.x, AREA_COMBATE.y,
+                            AREA_COMBATE.width, AREA_COMBATE.height);
 }
 
 void reiniciar_run_base(ContextoJogo* contexto)
@@ -95,6 +106,8 @@ void reiniciar_run_base(ContextoJogo* contexto)
     contexto->estado_run.lista_projeteis = NULL;
     contexto->estado_run.deve_ir_para_upgrade = false;
     contexto->estado_run.deve_encerrar_run = false;
+    preencher_mapa_colisao_base(contexto->estado_run.mapa_colisao);
+    contexto->profecia = gerar_profecia(contexto->estado_run.seed_atual);
 
     contexto->jogador.posicao_x = AREA_COMBATE.x + (AREA_COMBATE.width * 0.5f);
     contexto->jogador.posicao_y = AREA_COMBATE.y + (AREA_COMBATE.height * 0.5f);
@@ -178,15 +191,18 @@ static void desenhar_cena_inicio_run(const ContextoJogo* contexto)
 {
     desenhar_titulo_cena("Início da Run", "Esta tela antecipa seed e profecia.");
     DrawText(TextFormat("Seed atual: %u", contexto->estado_run.seed_atual), 92, 240, 28, RAYWHITE);
-    DrawText("A profecia determinística entra na próxima etapa da base.", 92, 286, 24,
-             (Color){162, 170, 191, 255});
-    DrawText("Enter ou Espaço: entrar em combate", 92, 352, 24, RAYWHITE);
-    DrawText("Esc: voltar ao menu", 92, 386, 24, (Color){162, 170, 191, 255});
+    DrawText("Profecia gerada para esta run:", 92, 286, 24, (Color){162, 170, 191, 255});
+    DrawText(TextFormat("1. %s", contexto->profecia.modificadores[0].texto_resumido), 116, 330, 24, RAYWHITE);
+    DrawText(TextFormat("2. %s", contexto->profecia.modificadores[1].texto_resumido), 116, 366, 24, RAYWHITE);
+    DrawText(TextFormat("3. %s", contexto->profecia.modificadores[2].texto_resumido), 116, 402, 24, RAYWHITE);
+    DrawText("Enter ou Espaço: entrar em combate", 92, 474, 24, RAYWHITE);
+    DrawText("Esc: voltar ao menu", 92, 520, 24, (Color){162, 170, 191, 255});
 }
 
 static void desenhar_cena_combate(const ContextoJogo* contexto)
 {
-    DrawRectangleRounded(AREA_COMBATE, 0.02f, 1, (Color){27, 34, 48, 255});
+    DrawRectangleRounded(AREA_COMBATE, 0.02f, 1, (Color){20, 24, 34, 255});
+    desenhar_grade_mapa(contexto);
     DrawRectangleLinesEx(AREA_COMBATE, 3.0f, (Color){82, 146, 214, 255});
 
     DrawCircleV((Vector2){contexto->jogador.posicao_x, contexto->jogador.posicao_y},
@@ -197,6 +213,9 @@ static void desenhar_cena_combate(const ContextoJogo* contexto)
     DrawText("Enter ou Espaço abre o placeholder de upgrade", 92, 668, 22, RAYWHITE);
     DrawText("Esc encerra a run e abre a tela de fim de jogo", 92, 696, 20,
              (Color){162, 170, 191, 255});
+    DrawText(contexto->profecia.modificadores[0].texto_resumido, 400, 28, 18, (Color){196, 204, 224, 255});
+    DrawText(contexto->profecia.modificadores[1].texto_resumido, 400, 50, 18, (Color){196, 204, 224, 255});
+    DrawText(contexto->profecia.modificadores[2].texto_resumido, 400, 72, 18, (Color){196, 204, 224, 255});
 
     DrawText(TextFormat("Wave atual: %d", contexto->estado_run.wave_atual), 930, 28, 28, RAYWHITE);
     DrawText(TextFormat("Tempo da run: %.1f s", contexto->estado_run.tempo_da_run), 930, 60, 24,
