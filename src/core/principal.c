@@ -4,6 +4,8 @@
  * principal do jogo ainda está sendo montada nas próximas etapas.
  */
 
+#include "augur/augur.h"
+
 int main(void)
 {
     return 0;
