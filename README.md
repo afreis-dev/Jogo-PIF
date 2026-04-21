@@ -1,98 +1,77 @@
 # AUGUR
 
-Base do projeto do PIF em C com Raylib.
+Bullet Hell Roguelite - Projeto PIF 2026.1 · CESAR School
 
-## Visão geral
+## Sobre o jogo
 
-Este repositório guarda a espinha dorsal do jogo `AUGUR`.
-Nesta etapa, o foco é deixar a base do Dev 1 pronta para integração:
+Em AUGUR, cada run comeca com uma **Profecia** - tres regras geradas proceduralmente que definem como aquele mundo funciona. Magias disparam automaticamente enquanto voce esquiva de projeteis inimigos. Entre ondas, escolha cartas de upgrade e decida quando gastar seus dados limitados para tentar melhorar ou piorar um upgrade.
 
-- janela gráfica com Raylib;
-- organização modular do projeto;
-- contratos públicos compartilhados;
-- sistema de cenas;
-- regras base do jogo;
-- pontos de integração para os outros devs.
+## Equipe
 
-## Controles da base atual
+| Dev | Responsabilidade | Modulos |
+|-----|------------------|---------|
+| Arthur (Dev 1) | Engine & Core | `main.c`, `tipos.h`, `jogador`, `profecia`, `colisao` |
+| Dev 2 | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
+| Dev 3 | Conteudo | `magias`, `inimigos`, `onda` |
 
-- `Enter` ou `Espaço`: confirma a ação principal da cena atual
-- `Esc`: volta ou encerra a run, dependendo da cena
-- `WASD` ou setas: movem o jogador no combate
-- `F3`: alterna a camada de debug
+## Requisitos
 
-## Estrutura de pastas
+- GCC 15+ via MSYS2 UCRT64
+- Raylib 5.5
+- GNU Make 4+
 
-```text
-include/augur  -> headers públicos compartilhados
-src/core       -> loop principal, cenas, janela, entrada e integração
-src/regras     -> colisão, profecia, tipos base e helpers puros
-src/stubs      -> pontos temporários para cartas, dados, HUD, inimigos, magias e waves
-assets         -> arquivos visuais e sons do projeto
-docs           -> documentação interna do grupo
+## Build no Windows com MSYS2 UCRT64
+
+Instale o ambiente:
+
+```bash
+pacman -Syu
+pacman -S mingw-w64-ucrt-x86_64-raylib
+pacman -S make
 ```
 
-## Build
+Valide:
 
-### Windows com MSYS2 UCRT64
+```bash
+pkg-config --cflags --libs raylib
+gcc --version
+mingw32-make --version
+```
 
-Pré-requisitos:
-
-- `gcc`
-- `pkg-config`
-- `raylib`
-- `mingw32-make`
-
-Comando:
+Compile:
 
 ```powershell
 mingw32-make
 ```
 
-Para executar:
+Rode:
 
 ```powershell
-.\build\augur.exe
+.\augur.exe
 ```
 
-### Linux ou WSL
+Limpe:
 
-Pré-requisitos:
-
-- `gcc`
-- `make`
-- `pkg-config`
-- `raylib`
-
-Comando:
-
-```bash
-make
+```powershell
+mingw32-make clean
 ```
 
-Para executar:
+## Estrutura do projeto
 
-```bash
-./build/augur
+```text
+src/      -> codigo fonte em modulos por responsabilidade
+assets/   -> sprites, sons e fontes
+saves/    -> arquivos de progresso gerados em runtime
+build/    -> objetos gerados pelo make
 ```
 
-## Convenções do projeto
+## Convencoes
 
-- Todo código próprio deve usar identificadores em português.
-- Comentários e documentação devem ficar em português.
-- Arquivos de código e documentação devem ser salvos em UTF-8.
-- Nomes da Raylib e da linguagem C permanecem como definidos pelas bibliotecas.
+- Todo identificador proprio do projeto fica em portugues.
+- Comentarios e documentacao ficam em portugues.
+- O contrato compartilhado entre os devs fica centralizado em `src/tipos.h`.
+- O `main.c` orquestra o loop principal e chama os modulos de jogo.
 
-## Situação atual da base
+## Objetivo desta base
 
-O projeto já abre janela, troca de cenas, move o jogador, gera uma profecia determinística por seed
-e expõe stubs comentados para os outros devs encaixarem seus sistemas sem mexer na arquitetura.
-
-## Fluxo de integração do grupo
-
-- Dev 1: core, regras, profecia, build e integração final
-- Dev 2: cartas, dados, HUD, save e score
-- Dev 3: inimigos, magias, projéteis, waves e efeitos visuais
-
-O documento [docs/integracao.md](docs/integracao.md) resume os contratos compartilhados,
-a ordem de chamada no loop e os pontos onde cada dev deve entrar.
+Esta base foi reorganizada para deixar o projeto mais facil de manter, compilar e evoluir em grupo. A ideia e que cada dev consiga trabalhar no seu modulo sem precisar refatorar a estrutura do jogo toda vez que uma nova funcionalidade entrar.
