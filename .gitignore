@@ -1,8 +1,18 @@
+# Arquivos compilados
 build/
 *.o
-*.obj
 *.exe
-*.out
-*.ilk
-*.pdb
-*.stackdump
+augur
+
+# Saves locais
+saves/*.dat
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+Thumbs.db
+.DS_Store
