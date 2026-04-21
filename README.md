@@ -20,9 +20,9 @@ Em AUGUR, cada run comeca com uma **Profecia** - tres regras geradas proceduralm
 - Raylib 5.5
 - GNU Make 4+
 
-## Build no Windows com MSYS2 UCRT64
+## Instalacao do ambiente
 
-Instale o ambiente:
+Abra o terminal **MSYS2 UCRT64** e rode:
 
 ```bash
 pacman -Syu
@@ -38,40 +38,65 @@ gcc --version
 mingw32-make --version
 ```
 
-Compile:
+## Como compilar e rodar
+
+No PowerShell:
 
 ```powershell
 mingw32-make
-```
-
-Rode:
-
-```powershell
 .\augur.exe
-```
-
-Limpe:
-
-```powershell
 mingw32-make clean
 ```
 
-## Estrutura do projeto
+No terminal MSYS2:
 
-```text
-src/      -> codigo fonte em modulos por responsabilidade
-assets/   -> sprites, sons e fontes
-saves/    -> arquivos de progresso gerados em runtime
-build/    -> objetos gerados pelo make
+```bash
+make
+make run
+make clean
 ```
 
-## Convencoes
+## Estrutura de pastas
 
-- Todo identificador proprio do projeto fica em portugues.
-- Comentarios e documentacao ficam em portugues.
-- O contrato compartilhado entre os devs fica centralizado em `src/tipos.h`.
-- O `main.c` orquestra o loop principal e chama os modulos de jogo.
+```text
+Jogo-PIF/
+|-- src/
+|   |-- tipos.h         <- contrato entre devs
+|   |-- main.c          <- game loop
+|   |-- jogador.c/.h    <- movimento, HP e bordas
+|   |-- profecia.c/.h   <- gerador procedural de profecias
+|   |-- colisao.c/.h    <- deteccao de colisao generica
+|   |-- magias.c/.h     <- projeteis e magias (Dev 3)
+|   |-- inimigos.c/.h   <- spawn e IA de inimigos (Dev 3)
+|   |-- onda.c/.h       <- gerador de ondas (Dev 3)
+|   |-- cartas.c/.h     <- sistema de upgrade (Dev 2)
+|   |-- dados.c/.h      <- sistema de dados (Dev 2)
+|   |-- salvamento.c/.h <- save/load em arquivo (Dev 2)
+|   `-- hud.c/.h        <- interface durante combate (Dev 2)
+|-- assets/             <- sprites, sons e fontes
+|-- build/              <- arquivos .o gerados pelo make
+|-- saves/              <- progresso gerado em runtime
+|-- Makefile
+`-- README.md
+```
 
-## Objetivo desta base
+## Controles
 
-Esta base foi reorganizada para deixar o projeto mais facil de manter, compilar e evoluir em grupo. A ideia e que cada dev consiga trabalhar no seu modulo sem precisar refatorar a estrutura do jogo toda vez que uma nova funcionalidade entrar.
+| Tecla | Acao |
+|-------|------|
+| WASD | Mover jogador |
+| ENTER | Confirmar / Avancar |
+| ESPACO | Iniciar combate / Proxima onda |
+| F1 | Alternar modo debug |
+| ESC | Sair |
+
+## Conceitos obrigatorios do PIF implementados
+
+| Conceito | Onde |
+|----------|------|
+| Structs | `tipos.h` - `Jogador`, `Inimigo`, `Profecia`, `EstadoJogo` |
+| Ponteiros | `EstadoJogo*` nas funcoes; `next` das listas |
+| Alocacao dinamica | `malloc`/`free` em `MagiaNo` e `InimigoNo` |
+| Listas encadeadas | `MagiaNo` e `InimigoNo` |
+| Matrizes | `mods[3]`, `escolhas_upgrade[3]`, tabelas de nomes |
+| Arquivo | `salvamento.c` - `saves/biomassa.dat` |
