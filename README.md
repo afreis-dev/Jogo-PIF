@@ -11,8 +11,8 @@ Em AUGUR, cada run comeca com uma **Profecia** - tres regras geradas proceduralm
 | Dev | Responsabilidade | Modulos |
 |-----|------------------|---------|
 | Arthur (Dev 1) | Engine & Core | `main.c`, `tipos.h`, `jogador`, `profecia`, `colisao` |
-| Dev 2 | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
-| Dev 3 | Conteudo | `magias`, `inimigos`, `onda` |
+| Sofia (Sofia) | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
+| Luisa (Luisa) | Conteudo | `magias`, `inimigos`, `onda` |
 
 ## Requisitos
 
@@ -66,13 +66,13 @@ Jogo-PIF/
 |   |-- jogador.c/.h    <- movimento, HP e bordas
 |   |-- profecia.c/.h   <- gerador procedural de profecias
 |   |-- colisao.c/.h    <- deteccao de colisao generica
-|   |-- magias.c/.h     <- projeteis e magias (Dev 3)
-|   |-- inimigos.c/.h   <- spawn e IA de inimigos (Dev 3)
-|   |-- onda.c/.h       <- gerador de ondas (Dev 3)
-|   |-- cartas.c/.h     <- sistema de upgrade (Dev 2)
-|   |-- dados.c/.h      <- sistema de dados (Dev 2)
-|   |-- salvamento.c/.h <- save/load em arquivo (Dev 2)
-|   `-- hud.c/.h        <- interface durante combate (Dev 2)
+|   |-- magias.c/.h     <- projeteis e magias (Luisa)
+|   |-- inimigos.c/.h   <- spawn e IA de inimigos (Luisa)
+|   |-- onda.c/.h       <- gerador de ondas (Luisa)
+|   |-- cartas.c/.h     <- sistema de upgrade (Sofia)
+|   |-- dados.c/.h      <- sistema de dados (Sofia)
+|   |-- salvamento.c/.h <- save/load em arquivo (Sofia)
+|   `-- hud.c/.h        <- interface durante combate (Sofia)
 |-- assets/             <- sprites, sons e fontes
 |-- build/              <- arquivos .o gerados pelo make
 |-- saves/              <- progresso gerado em runtime
