@@ -13,8 +13,8 @@ Cada run tem uma **seed** visivel na tela. Como a profecia e gerada de forma det
 | Dev | Responsabilidade | Modulos |
 |-----|------------------|---------|
 | Arthur (Dev 1) | Engine & Core | `main.c`, `tipos.h`, `jogador`, `profecia`, `colisao` |
-| Sofia (Sofia) | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
-| Luisa (Luisa) | Conteudo | `magias`, `inimigos`, `onda` |
+| Sofia (Dev 2) | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
+| Luisa (Dev 3) | Conteudo | `magias`, `inimigos`, `onda` |
 
 ## Requisitos
 
