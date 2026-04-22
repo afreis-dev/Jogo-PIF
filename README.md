@@ -6,6 +6,8 @@ Bullet Hell Roguelite - Projeto PIF 2026.1 · CESAR School
 
 Em AUGUR, cada run comeca com uma **Profecia** - tres regras geradas proceduralmente que definem como aquele mundo funciona. Magias disparam automaticamente enquanto voce esquiva de projeteis inimigos. Entre ondas, escolha cartas de upgrade e decida quando gastar seus dados limitados para tentar melhorar ou piorar um upgrade.
 
+Cada run tem uma **seed** visivel na tela. Como a profecia e gerada de forma deterministica a partir da seed, voce pode compartilhar runs marcantes com amigos: mesma seed = mesma profecia = mesmo puzzle inicial. E o ponto de partida pra replays, debug e desafios entre jogadores.
+
 ## Equipe
 
 | Dev | Responsabilidade | Modulos |
