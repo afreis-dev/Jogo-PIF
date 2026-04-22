@@ -196,6 +196,10 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
 static void atualizar_combate(EstadoJogo *ej) {
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
+    /* A camera segue o jogador em tempo real. Como o offset e o centro da
+     * tela, isso mantem o player sempre centralizado e o mundo rola em volta. */
+    ej->camera.target = ej->jogador.posicao;
+
     magias_atualizar(ej);               /* stub Dev 3 */
     inimigos_atualizar(ej);             /* stub Dev 3 */
     onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
@@ -259,9 +263,15 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
-            jogador_desenhar(&ej->jogador);
-            magias_desenhar(ej);    /* stub */
-            inimigos_desenhar(ej);  /* stub */
+            /* Tudo dentro de BeginMode2D e desenhado em COORD DE MUNDO:
+             * a camera aplica o offset automaticamente. Jogador, magias e
+             * inimigos vivem no mundo. */
+            BeginMode2D(ej->camera);
+                jogador_desenhar(&ej->jogador);
+                magias_desenhar(ej);    /* stub */
+                inimigos_desenhar(ej);  /* stub */
+            EndMode2D();
+            /* HUD e coord de TELA (fixa, nao rola com a camera). */
             hud_desenhar(ej);       /* stub */
             break;
 
