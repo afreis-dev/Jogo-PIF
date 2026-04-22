@@ -21,10 +21,11 @@
 
 /* ----- INICIALIZACAO ----- */
 void jogador_inicializar(Jogador *j) {
-    /* Posicao inicial: centro da tela.
-     * O casting "(float)" evita warning de conversao de int pra float. */
-    j->posicao        = (Vector2){ (float)LARGURA_TELA / 2.0f,
-                                   (float)ALTURA_TELA  / 2.0f };
+    /* Posicao inicial: origem do mundo (0, 0). O mundo e infinito e a Camera2D
+     * enquadra o jogador sempre no centro da tela, entao nao importa onde ele
+     * comeca - importa que sua posicao seja interpretada em coordenadas de
+     * mundo, nao de tela. */
+    j->posicao        = (Vector2){ 0.0f, 0.0f };
     j->velocidade     = (Vector2){ 0.0f, 0.0f };
     j->raio           = 16.0f;
     j->vida_maxima    = 100;
@@ -66,20 +67,8 @@ void jogador_atualizar(Jogador *j, float delta_tempo) {
     j->posicao.x += j->velocidade.x * delta_tempo;
     j->posicao.y += j->velocidade.y * delta_tempo;
 
-    /* 5. Clamp nas bordas da tela.
-     * O raio e descontado pra bolinha nao atravessar a parede. */
-    if (j->posicao.x < j->raio) {
-        j->posicao.x = j->raio;
-    }
-    if (j->posicao.x > LARGURA_TELA - j->raio) {
-        j->posicao.x = LARGURA_TELA - j->raio;
-    }
-    if (j->posicao.y < j->raio) {
-        j->posicao.y = j->raio;
-    }
-    if (j->posicao.y > ALTURA_TELA - j->raio) {
-        j->posicao.y = ALTURA_TELA - j->raio;
-    }
+    /* Sem clamp: o mundo e infinito (estilo Vampire Survivors). A sensacao de
+     * arena vem dos inimigos spawnando em volta do jogador, nao de paredes. */
 }
 
 
