@@ -42,6 +42,7 @@
 #include <stdlib.h>   /* srand, rand */
 #include <stdio.h>    /* snprintf */
 #include <time.h>     /* time() pra seed inicial */
+#include <math.h>     /* floorf, ceilf pra desenhar o grid infinito */
 
 
 /* ============================================================================
@@ -52,6 +53,8 @@ static void jogo_inicializar(EstadoJogo *ej);
 static void jogo_atualizar(EstadoJogo *ej);
 static void jogo_desenhar(const EstadoJogo *ej);
 static void jogo_finalizar(EstadoJogo *ej);
+
+static void desenhar_grid_mundo(const Camera2D *camera);
 
 static void atualizar_menu(EstadoJogo *ej);
 static void atualizar_revelacao_profecia(EstadoJogo *ej);
@@ -113,6 +116,14 @@ static void jogo_inicializar(EstadoJogo *ej) {
     /* Listas comecam vazias (cabeca = NULL) */
     ej->magias_cabeca   = NULL;
     ej->inimigos_cabeca = NULL;
+
+    /* Camera 2D: offset no centro da tela + target na posicao do jogador.
+     * Resultado: o jogador aparece sempre centralizado e o mundo "rola"
+     * conforme ele anda. Zoom 1.0 = sem zoom. */
+    ej->camera.offset   = (Vector2){ LARGURA_TELA / 2.0f, ALTURA_TELA / 2.0f };
+    ej->camera.target   = ej->jogador.posicao;
+    ej->camera.rotation = 0.0f;
+    ej->camera.zoom     = 1.0f;
 
     ej->modo_debug = false;
 }
@@ -188,6 +199,10 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
 static void atualizar_combate(EstadoJogo *ej) {
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
+    /* A camera segue o jogador em tempo real. Como o offset e o centro da
+     * tela, isso mantem o player sempre centralizado e o mundo rola em volta. */
+    ej->camera.target = ej->jogador.posicao;
+
     magias_atualizar(ej);               /* stub Dev 3 */
     inimigos_atualizar(ej);             /* stub Dev 3 */
     onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
@@ -251,9 +266,16 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
-            jogador_desenhar(&ej->jogador);
-            magias_desenhar(ej);    /* stub */
-            inimigos_desenhar(ej);  /* stub */
+            /* Tudo dentro de BeginMode2D e desenhado em COORD DE MUNDO:
+             * a camera aplica o offset automaticamente. Jogador, magias e
+             * inimigos vivem no mundo. */
+            BeginMode2D(ej->camera);
+                desenhar_grid_mundo(&ej->camera);
+                jogador_desenhar(&ej->jogador);
+                magias_desenhar(ej);    /* stub */
+                inimigos_desenhar(ej);  /* stub */
+            EndMode2D();
+            /* HUD e coord de TELA (fixa, nao rola com a camera). */
             hud_desenhar(ej);       /* stub */
             break;
 
@@ -295,4 +317,45 @@ static void jogo_finalizar(EstadoJogo *ej) {
     magias_liberar_tudo(ej);      /* stub - libera lista encadeada */
     inimigos_liberar_tudo(ej);    /* stub - libera lista encadeada */
     salvamento_salvar(&ej->salvamento);  /* stub - grava arquivo */
+}
+
+
+/* ============================================================================
+ * GRID DE REFERENCIA DO MUNDO
+ * --------------------------------------------------------------------------
+ * Desenha linhas finas em intervalos fixos, mas SO NA AREA VISIVEL da camera.
+ * Isso da sensacao de "mundo infinito" (as linhas aparecem rolando conforme o
+ * jogador anda) sem precisar renderizar milhoes de linhas - so as que cabem
+ * na tela a cada frame.
+ *
+ * Como deve ser chamada dentro de BeginMode2D, usamos coord de mundo: a area
+ * visivel em mundo vai de (target - tela/2/zoom) ate (target + tela/2/zoom).
+ * ========================================================================== */
+static void desenhar_grid_mundo(const Camera2D *camera) {
+    const float ESPACAMENTO = 128.0f;     /* distancia entre linhas, em pixels de mundo */
+    const Color COR_GRID    = (Color){ 30, 30, 45, 255 };  /* azul bem escuro, discreto */
+
+    /* Limites visiveis em coord de mundo. zoom divide porque zoom 2 mostra
+     * metade do mundo, zoom 0.5 mostra o dobro. */
+    float meia_largura = (LARGURA_TELA / 2.0f) / camera->zoom;
+    float meia_altura  = (ALTURA_TELA  / 2.0f) / camera->zoom;
+
+    float esquerda = camera->target.x - meia_largura;
+    float direita  = camera->target.x + meia_largura;
+    float topo     = camera->target.y - meia_altura;
+    float baixo    = camera->target.y + meia_altura;
+
+    /* Alinha o inicio pra cair num multiplo de ESPACAMENTO (efeito de grid
+     * "fixo no mundo", nao colado na camera). */
+    float primeiro_x = floorf(esquerda / ESPACAMENTO) * ESPACAMENTO;
+    float primeiro_y = floorf(topo     / ESPACAMENTO) * ESPACAMENTO;
+
+    /* Verticais */
+    for (float x = primeiro_x; x <= direita; x += ESPACAMENTO) {
+        DrawLineV((Vector2){ x, topo }, (Vector2){ x, baixo }, COR_GRID);
+    }
+    /* Horizontais */
+    for (float y = primeiro_y; y <= baixo; y += ESPACAMENTO) {
+        DrawLineV((Vector2){ esquerda, y }, (Vector2){ direita, y }, COR_GRID);
+    }
 }

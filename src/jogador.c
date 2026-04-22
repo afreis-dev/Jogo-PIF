@@ -21,10 +21,11 @@
 
 /* ----- INICIALIZACAO ----- */
 void jogador_inicializar(Jogador *j) {
-    /* Posicao inicial: centro da tela.
-     * O casting "(float)" evita warning de conversao de int pra float. */
-    j->posicao        = (Vector2){ (float)LARGURA_TELA / 2.0f,
-                                   (float)ALTURA_TELA  / 2.0f };
+    /* Posicao inicial: origem do mundo (0, 0). O mundo e infinito e a Camera2D
+     * enquadra o jogador sempre no centro da tela, entao nao importa onde ele
+     * comeca - importa que sua posicao seja interpretada em coordenadas de
+     * mundo, nao de tela. */
+    j->posicao        = (Vector2){ 0.0f, 0.0f };
     j->velocidade     = (Vector2){ 0.0f, 0.0f };
     j->raio           = 16.0f;
     j->vida_maxima    = 100;
@@ -66,28 +67,33 @@ void jogador_atualizar(Jogador *j, float delta_tempo) {
     j->posicao.x += j->velocidade.x * delta_tempo;
     j->posicao.y += j->velocidade.y * delta_tempo;
 
-    /* 5. Clamp nas bordas da tela.
-     * O raio e descontado pra bolinha nao atravessar a parede. */
-    if (j->posicao.x < j->raio) {
-        j->posicao.x = j->raio;
-    }
-    if (j->posicao.x > LARGURA_TELA - j->raio) {
-        j->posicao.x = LARGURA_TELA - j->raio;
-    }
-    if (j->posicao.y < j->raio) {
-        j->posicao.y = j->raio;
-    }
-    if (j->posicao.y > ALTURA_TELA - j->raio) {
-        j->posicao.y = ALTURA_TELA - j->raio;
-    }
+    /* Sem clamp: o mundo e infinito (estilo Vampire Survivors). A sensacao de
+     * arena vem dos inimigos spawnando em volta do jogador, nao de paredes. */
 }
 
 
 /* ----- DESENHO -----
- * Bolinha azul com contorno branco. Dev 3 pode trocar por sprite depois. */
+ * Bolinha azul com contorno branco. Luisa (Dev 3) pode trocar por sprite depois.
+ *
+ * Quando o jogador esta se movendo, um pontinho branco e desenhado no raio,
+ * na direcao do movimento. Da leitura visual de "pra onde estou indo" sem
+ * complicar o asset. Se estiver parado, o pontinho some. */
 void jogador_desenhar(const Jogador *j) {
     DrawCircleV(j->posicao, j->raio, SKYBLUE);
     DrawCircleLines((int)j->posicao.x, (int)j->posicao.y, j->raio, WHITE);
+
+    /* Comprimento do vetor velocidade. Se muito proximo de zero, esta parado. */
+    float vel2 = j->velocidade.x * j->velocidade.x +
+                 j->velocidade.y * j->velocidade.y;
+    if (vel2 > 0.01f) {
+        float comprimento = sqrtf(vel2);
+        /* Normaliza a direcao e coloca o pontinho bem na borda, no raio. */
+        Vector2 indicador = {
+            j->posicao.x + (j->velocidade.x / comprimento) * j->raio,
+            j->posicao.y + (j->velocidade.y / comprimento) * j->raio
+        };
+        DrawCircleV(indicador, 3.0f, WHITE);
+    }
 }
 
 

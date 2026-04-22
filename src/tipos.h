@@ -280,6 +280,14 @@ typedef struct {
     Onda      onda_atual;
     DadosSalvos salvamento;
 
+    /* --- Camera 2D ---
+     * O jogador vive em um mundo infinito (sem bordas). A camera segue o
+     * jogador: camera.target = jogador.posicao. offset e o ponto da tela onde
+     * o target aparece (centro da tela = player centralizado). Tudo que for
+     * desenhado dentro de BeginMode2D(camera)/EndMode2D e interpretado em
+     * coordenadas de mundo; o que fica fora e coord de tela (HUD, menus). */
+    Camera2D  camera;
+
     /* --- Listas encadeadas (cabecas) ---
      * Comecam em NULL = lista vazia. Dev 3 adiciona nos com malloc. */
     MagiaNo   *magias_cabeca;
