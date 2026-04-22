@@ -73,10 +73,27 @@ void jogador_atualizar(Jogador *j, float delta_tempo) {
 
 
 /* ----- DESENHO -----
- * Bolinha azul com contorno branco. Dev 3 pode trocar por sprite depois. */
+ * Bolinha azul com contorno branco. Luisa (Dev 3) pode trocar por sprite depois.
+ *
+ * Quando o jogador esta se movendo, um pontinho branco e desenhado no raio,
+ * na direcao do movimento. Da leitura visual de "pra onde estou indo" sem
+ * complicar o asset. Se estiver parado, o pontinho some. */
 void jogador_desenhar(const Jogador *j) {
     DrawCircleV(j->posicao, j->raio, SKYBLUE);
     DrawCircleLines((int)j->posicao.x, (int)j->posicao.y, j->raio, WHITE);
+
+    /* Comprimento do vetor velocidade. Se muito proximo de zero, esta parado. */
+    float vel2 = j->velocidade.x * j->velocidade.x +
+                 j->velocidade.y * j->velocidade.y;
+    if (vel2 > 0.01f) {
+        float comprimento = sqrtf(vel2);
+        /* Normaliza a direcao e coloca o pontinho bem na borda, no raio. */
+        Vector2 indicador = {
+            j->posicao.x + (j->velocidade.x / comprimento) * j->raio,
+            j->posicao.y + (j->velocidade.y / comprimento) * j->raio
+        };
+        DrawCircleV(indicador, 3.0f, WHITE);
+    }
 }
 
 
