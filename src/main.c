@@ -114,6 +114,14 @@ static void jogo_inicializar(EstadoJogo *ej) {
     ej->magias_cabeca   = NULL;
     ej->inimigos_cabeca = NULL;
 
+    /* Camera 2D: offset no centro da tela + target na posicao do jogador.
+     * Resultado: o jogador aparece sempre centralizado e o mundo "rola"
+     * conforme ele anda. Zoom 1.0 = sem zoom. */
+    ej->camera.offset   = (Vector2){ LARGURA_TELA / 2.0f, ALTURA_TELA / 2.0f };
+    ej->camera.target   = ej->jogador.posicao;
+    ej->camera.rotation = 0.0f;
+    ej->camera.zoom     = 1.0f;
+
     ej->modo_debug = false;
 }
 
