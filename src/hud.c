@@ -27,8 +27,8 @@
 #include <stdio.h>
 
 #define HUD_MARGEM         10
-#define HUD_BARRA_LARG    300
-#define HUD_BARRA_ALT      30
+#define HUD_BARRA_LARG    200
+#define HUD_BARRA_ALT      20
 #define HUD_FONTE_PEQUENA  18
 #define HUD_FONTE_MEDIA    20
 #define HUD_FONTE_GRANDE   22
@@ -67,4 +67,12 @@ void hud_desenhar_barra_vida(const EstadoJogo *ej)
     snprintf(buf, sizeof(buf), "HP: %d/%d", ej->jogador.vida, ej->jogador.vida_maxima);
     DrawText(buf, x + 4, y + 6, HUD_FONTE_PEQUENA, WHITE);
 
+}
+
+
+void hud_desenhar_onda(const EstadoJogo *ej){
+
+    char buf[32];
+    snprintf(buf, 32, "Onda %d", ej->onda_atual.numero);
+    DrawText(buf, LARGURA_TELA / 2 - 40, HUD_MARGEM, HUD_FONTE_GRANDE ,GOLD);
 }

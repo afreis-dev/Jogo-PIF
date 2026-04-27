@@ -277,6 +277,7 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             EndMode2D();
             /* HUD e coord de TELA (fixa, nao rola com a camera). */
             hud_desenhar_barra_vida(ej);       /* stub */
+            hud_desenhar_onda(ej);
             break;
 
         case ESTADO_CARTAS_UPGRADE:
