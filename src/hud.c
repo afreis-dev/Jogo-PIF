@@ -76,3 +76,24 @@ void hud_desenhar_onda(const EstadoJogo *ej){
     snprintf(buf, 32, "Onda %d", ej->onda_atual.numero);
     DrawText(buf, LARGURA_TELA / 2 - 40, HUD_MARGEM, HUD_FONTE_GRANDE ,GOLD);
 }
+
+void hud_desenhar_biomassa(const EstadoJogo *ej)
+{
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", ej->jogador.biomassa);
+
+    
+    int moeda_raio = HUD_MARGEM - 2;
+    int moeda_x = HUD_MARGEM + moeda_raio;
+    int moeda_y = HUD_MARGEM + HUD_BARRA_ALT + HUD_MARGEM + moeda_raio;
+    
+    DrawCircle(moeda_x, moeda_y, moeda_raio + 2, GOLD);
+    DrawCircle(moeda_x, moeda_y, moeda_raio, YELLOW);
+    int cifrao = MeasureText("B", HUD_FONTE_PEQUENA);
+    DrawText("$", moeda_x - cifrao / 2, moeda_y - HUD_FONTE_PEQUENA / 2, HUD_FONTE_PEQUENA, GOLD);
+    
+    int quant_moeda_x = moeda_x + moeda_raio + 7;
+    int quant_moeda_y = moeda_y - HUD_FONTE_MEDIA / 2;
+
+    DrawText(buf, quant_moeda_x, quant_moeda_y, HUD_FONTE_MEDIA, WHITE);
+}
