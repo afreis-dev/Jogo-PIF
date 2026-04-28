@@ -55,6 +55,7 @@ static void jogo_desenhar(const EstadoJogo *ej);
 static void jogo_finalizar(EstadoJogo *ej);
 
 static void desenhar_grid_mundo(const Camera2D *camera);
+static void desenhar_mundo_combate(const EstadoJogo *ej);
 
 static void atualizar_menu(EstadoJogo *ej);
 static void atualizar_revelacao_profecia(EstadoJogo *ej);
@@ -266,21 +267,19 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
-            /* Tudo dentro de BeginMode2D e desenhado em COORD DE MUNDO:
-             * a camera aplica o offset automaticamente. Jogador, magias e
-             * inimigos vivem no mundo. */
-            BeginMode2D(ej->camera);
-                desenhar_grid_mundo(&ej->camera);
-                jogador_desenhar(&ej->jogador);
-                magias_desenhar(ej);    /* stub */
-                inimigos_desenhar(ej);  /* stub */
-            EndMode2D();
-            /* HUD e coord de TELA (fixa, nao rola com a camera). */
-            desenhar_hud(ej);    /* stub */
-            
+            desenhar_mundo_combate(ej);
             break;
 
         case ESTADO_CARTAS_UPGRADE:
+            /* Mundo congelado ao fundo: como atualizar_cartas_upgrade nao roda
+             * a logica do combate, jogador, inimigos e projeteis ficam parados
+             * exatamente onde estavam quando a onda terminou. Visualmente parece
+             * que o tempo travou. */
+            desenhar_mundo_combate(ej);
+
+            /* Overlay escuro semi-transparente pra dar contraste com a UI. */
+            DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA, (Color){ 0, 0, 0, 160 });
+
             DrawText("ESCOLHA UM UPGRADE",
                      LARGURA_TELA/2 - 180, 80, 32, GOLD);
             cartas_desenhar_ui(ej); /* stub */
@@ -318,6 +317,25 @@ static void jogo_finalizar(EstadoJogo *ej) {
     magias_liberar_tudo(ej);      /* stub - libera lista encadeada */
     inimigos_liberar_tudo(ej);    /* stub - libera lista encadeada */
     salvamento_salvar(&ej->salvamento);  /* stub - grava arquivo */
+}
+
+
+/* ============================================================================
+ * DESENHO DO MUNDO DE COMBATE
+ * --------------------------------------------------------------------------
+ * Junta tudo que aparece em tela durante o combate: grid + jogador + magias
+ * + inimigos (em coord de mundo, dentro do BeginMode2D) e o HUD por cima
+ * (em coord de tela). Vira um helper pra que o estado CARTAS_UPGRADE possa
+ * mostrar o mesmo cenario "congelado" como pano de fundo da tela de upgrade.
+ * ========================================================================== */
+static void desenhar_mundo_combate(const EstadoJogo *ej) {
+    BeginMode2D(ej->camera);
+        desenhar_grid_mundo(&ej->camera);
+        jogador_desenhar(&ej->jogador);
+        magias_desenhar(ej);
+        inimigos_desenhar(ej);
+    EndMode2D();
+    desenhar_hud(ej);
 }
 
 
