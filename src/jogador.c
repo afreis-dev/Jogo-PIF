@@ -37,14 +37,16 @@ void jogador_inicializar(Jogador *j) {
 
 /* ----- ATUALIZACAO (chamada a cada frame durante combate) ----- */
 void jogador_atualizar(Jogador *j, float delta_tempo) {
-    /* 1. Ler input das teclas WASD.
+    /* 1. Ler input das teclas WASD ou das setinhas.
      * IsKeyDown retorna true ENQUANTO a tecla esta pressionada (diferente
-     * de IsKeyPressed, que so retorna true no frame em que foi apertada). */
+     * de IsKeyPressed, que so retorna true no frame em que foi apertada).
+     * As duas opcoes coexistem: se o jogador apertar W e UP juntos, conta
+     * como um unico input pra cima (vetor nao se acumula). */
     Vector2 direcao = { 0.0f, 0.0f };
-    if (IsKeyDown(KEY_W)) direcao.y -= 1.0f;   /* Y invertido: cima = negativo */
-    if (IsKeyDown(KEY_S)) direcao.y += 1.0f;
-    if (IsKeyDown(KEY_A)) direcao.x -= 1.0f;
-    if (IsKeyDown(KEY_D)) direcao.x += 1.0f;
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))    direcao.y -= 1.0f;  /* Y invertido: cima = negativo */
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  direcao.y += 1.0f;
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  direcao.x -= 1.0f;
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) direcao.x += 1.0f;
 
     /* 2. Normalizar o vetor de direcao.
      * Se o jogador aperta W+D ao mesmo tempo, direcao = (1, -1), cujo
