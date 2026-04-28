@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define INTERVALO_DISPARO   0.4f    /* segundos entre tiros */
-#define VELOCIDADE_PROJETIL 480.0f  /* px/s */
+#define INTERVALO_DISPARO   10.4f    /* segundos entre tiros */
+#define VELOCIDADE_PROJETIL 100.0f  /* px/s */
 #define DANO_PROJETIL       15.0f
 #define VIDA_PROJETIL       1.5f    /* segundos antes de expirar */
 
@@ -79,17 +79,29 @@ void magias_atualizar(EstadoJogo *ej) {
      * dah pra usar essa simplificacao. Numa versao final isso deveria viver
      * em EstadoJogo. */
     static float timer_disparo = 0.0f;
+    static bool  atirando      = true;   /* SANDBOX: Q alterna auto-fire */
 
     float dt = ej->delta_tempo;
 
-    /* 1. Tentar disparar um novo projetil. */
-    timer_disparo -= dt;
-    if (timer_disparo <= 0.0f) {
-        InimigoNo *alvo = inimigo_mais_proximo(ej);
-        if (alvo != NULL) {
-            spawnar_projetil(ej, ej->jogador.posicao, alvo->dados.posicao);
+    /* Toggle de teste: Q liga/desliga o auto-disparo. Util pra testar
+     * comportamento dos inimigos sem ser interrompido pelos projeteis. */
+    if (IsKeyPressed(KEY_Q)) {
+        atirando = !atirando;
+    }
+
+    /* 1. Tentar disparar um novo projetil (so se estiver atirando). */
+    if (atirando) {
+        timer_disparo -= dt;
+        if (timer_disparo <= 0.0f) {
+            InimigoNo *alvo = inimigo_mais_proximo(ej);
+            if (alvo != NULL) {
+                spawnar_projetil(ej, ej->jogador.posicao, alvo->dados.posicao);
+            }
+            timer_disparo = INTERVALO_DISPARO;
         }
-        timer_disparo = INTERVALO_DISPARO;
+    } else {
+        /* Mantem o timer "armado" pra disparar logo quando ligar de novo. */
+        timer_disparo = 0.0f;
     }
 
     /* 2. Mover projeteis vivos e expirar os antigos. */
