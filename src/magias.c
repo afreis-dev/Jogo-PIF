@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define INTERVALO_DISPARO   10.4f    /* segundos entre tiros */
-#define VELOCIDADE_PROJETIL 100.0f  /* px/s */
+#define INTERVALO_DISPARO   0.4f    /* segundos entre tiros */
+#define VELOCIDADE_PROJETIL 480.0f  /* px/s */
 #define DANO_PROJETIL       15.0f
 #define VIDA_PROJETIL       1.5f    /* segundos antes de expirar */
 
