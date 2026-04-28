@@ -39,6 +39,9 @@
 #include "salvamento.h"
 #include "hud.h"
 
+/* SANDBOX: obstaculos do mapa (arvores, pedras). Bloqueiam jogador e inimigos. */
+#include "obstaculos.h"
+
 #include <stdlib.h>   /* srand, rand */
 #include <stdio.h>    /* snprintf */
 #include <time.h>     /* time() pra seed inicial */
@@ -230,6 +233,12 @@ static void atualizar_combate(EstadoJogo *ej) {
 
     colisao_verificar_tudo(ej);         /* Dev 1 - implementado */
 
+    /* SANDBOX: obstaculos bloqueiam tanto o jogador quanto os inimigos.
+     * Resolvidos APOS colisao_verificar_tudo pra ter a palavra final - assim
+     * inimigo nao consegue empurrar o jogador pra dentro de uma arvore. */
+    obstaculos_resolver_jogador(ej);
+    obstaculos_resolver_inimigos(ej);
+
     if (ej->jogador.vida <= 0) {
         ej->proximo_estado = ESTADO_GAME_OVER;
     } else if (ej->onda_atual.completa) {
@@ -386,9 +395,10 @@ static void jogo_finalizar(EstadoJogo *ej) {
 static void desenhar_mundo_combate(const EstadoJogo *ej) {
     BeginMode2D(ej->camera);
         desenhar_grid_mundo(&ej->camera);
-        jogador_desenhar(&ej->jogador);
+        obstaculos_desenhar(ej);    /* arvores e pedras vao por baixo das entidades */
         magias_desenhar(ej);
         inimigos_desenhar(ej);
+        jogador_desenhar(&ej->jogador);
     EndMode2D();
     desenhar_hud(ej);
 }
@@ -448,6 +458,10 @@ static void iniciar_nova_run(EstadoJogo *ej) {
 
     /* Profecia nova com seed aleatoria. */
     profecia_gerar(&ej->profecia, (unsigned int)rand());
+
+    /* Layout de obstaculos do mapa, deterministico a partir da seed da run.
+     * Mesma profecia -> mesmo mapa. */
+    obstaculos_gerar(ej, ej->profecia.seed);
 
     ej->pausado     = false;
     ej->opcao_pausa = 0;
