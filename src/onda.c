@@ -41,14 +41,38 @@ void onda_atualizar(Onda *o, EstadoJogo *ej) {
     if (o->inimigos_restantes > 0) {
         o->timer_spawn -= ej->delta_tempo;
         if (o->timer_spawn <= 0.0f) {
-            /* Posicao numa borda imaginaria a 600px do jogador. Como a tela
-             * tem 1280x720 e o player fica no centro, esse raio garante que
-             * o inimigo nasca off-screen (~50% alem da metade da tela). */
-            float angulo  = ((float)rand() / (float)RAND_MAX) * 6.28318f; /* 2pi */
-            float raio    = 600.0f;
+            /* Spawn logo ALEM da borda visivel da tela.
+             *
+             * Como a camera mantem o jogador no centro, a tela mostra um
+             * retangulo de LARGURA_TELA x ALTURA_TELA centrado nele. Pra
+             * achar o ponto mais proximo a um angulo qualquer que esta JUSTO
+             * fora desse retangulo: projeto o vetor (cos, sin) ate ele bater
+             * em uma das paredes - quem bater primeiro define a distancia.
+             *
+             *   t_x = (largura/2) / |cos(angulo)|   -> distancia ate parede vertical
+             *   t_y = (altura/2) / |sin(angulo)|   -> distancia ate parede horizontal
+             *   t   = min(t_x, t_y)                -> sai pela parede mais proxima
+             *
+             * Somo uma pequena MARGEM pra que o inimigo nasca um pouquinho
+             * fora da tela, e nao exatamente no canto visivel. */
+            float angulo = ((float)rand() / (float)RAND_MAX) * 6.28318f;
+            float dx     = cosf(angulo);
+            float dy     = sinf(angulo);
+
+            const float MARGEM       = 40.0f;
+            float       meia_largura = LARGURA_TELA / 2.0f;
+            float       meia_altura  = ALTURA_TELA  / 2.0f;
+
+            /* Evita divisao por zero quando o angulo esta quase paralelo a
+             * um dos eixos. Usar um valor enorme garante que o outro eixo
+             * vai dominar o min(). */
+            float t_x = (fabsf(dx) > 0.001f) ? meia_largura / fabsf(dx) : 1e9f;
+            float t_y = (fabsf(dy) > 0.001f) ? meia_altura  / fabsf(dy) : 1e9f;
+            float t   = fminf(t_x, t_y) + MARGEM;
+
             Vector2 pos = {
-                ej->jogador.posicao.x + cosf(angulo) * raio,
-                ej->jogador.posicao.y + sinf(angulo) * raio
+                ej->jogador.posicao.x + dx * t,
+                ej->jogador.posicao.y + dy * t
             };
             inimigos_spawnar_em(ej, pos);
 
