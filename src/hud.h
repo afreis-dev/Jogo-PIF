@@ -20,9 +20,7 @@
 
 /* Desenha todos os elementos de HUD sobre o jogo. Chamada no final do
  * jogo_desenhar(), pra ficar por cima de tudo. */
-void hud_desenhar_barra_vida(const EstadoJogo *ej);
-void hud_desenhar_onda(const EstadoJogo *ej);
-void hud_desenhar_biomassa(const EstadoJogo *ej);
+void desenhar_hud(const EstadoJogo *ej);
 
 
 #endif /* HUD_H */
