@@ -307,6 +307,13 @@ typedef struct {
 
     /* --- Debug --- */
     bool      modo_debug;         /* F1 alterna; mostra FPS e info extra */
+
+    /* --- Pausa (sandbox) ---
+     * pausado = true congela a logica de combate e abre um menu sobreposto
+     * com "Continuar" e "Voltar ao menu". opcao_pausa marca qual esta
+     * destacada (0 = continuar, 1 = menu). */
+    bool      pausado;
+    int       opcao_pausa;
 } EstadoJogo;
 
 #endif /* TIPOS_H */

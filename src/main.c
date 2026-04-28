@@ -56,6 +56,9 @@ static void jogo_finalizar(EstadoJogo *ej);
 
 static void desenhar_grid_mundo(const Camera2D *camera);
 static void desenhar_mundo_combate(const EstadoJogo *ej);
+static void desenhar_overlay_pausa(const EstadoJogo *ej);
+static void iniciar_nova_run(EstadoJogo *ej);
+static void atualizar_pausa(EstadoJogo *ej);
 
 static void atualizar_menu(EstadoJogo *ej);
 static void atualizar_revelacao_profecia(EstadoJogo *ej);
@@ -71,6 +74,10 @@ int main(void) {
     /* 1. Inicializacao do Raylib (abre a janela, prepara contexto grafico) */
     InitWindow(LARGURA_TELA, ALTURA_TELA, "AUGUR - Projeto PIF CESAR");
     SetTargetFPS(FPS_ALVO);
+
+    /* Desabilita o atalho default do Raylib que fechava a janela com ESC.
+     * A gente quer que ESC abra o menu de pausa em vez de matar o jogo. */
+    SetExitKey(KEY_NULL);
 
     /* Inicializa o gerador aleatorio do sistema com o horario atual.
      * Sem isso, toda vez que o jogo abre, as seeds seriam iguais. */
@@ -174,10 +181,7 @@ static void jogo_atualizar(EstadoJogo *ej) {
  * de revelacao. */
 static void atualizar_menu(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
-        /* Gera profecia com uma seed aleatoria.
-         * rand() retorna int, convertemos pra unsigned. */
-        unsigned int seed = (unsigned int)rand();
-        profecia_gerar(&ej->profecia, seed);
+        iniciar_nova_run(ej);
         ej->proximo_estado = ESTADO_REVELACAO_PROFECIA;
     }
 }
@@ -196,8 +200,19 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
 /* --- Estado: COMBATE ------------------------------------------------------
  * O coracao do jogo. Atualiza jogador, magias, inimigos, onda, colisoes.
  * Se o jogador morrer, vai pra GAME_OVER. Se a onda acabar, vai pra
- * CARTAS_UPGRADE. */
+ * CARTAS_UPGRADE. ESC abre o menu de pausa. */
 static void atualizar_combate(EstadoJogo *ej) {
+    /* Toggle de pausa: ESC abre o menu sobreposto. Quando pausado, a logica
+     * de combate nao roda - tudo no mundo congela exatamente onde estava. */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->pausado     = true;
+        ej->opcao_pausa = 0;   /* default: cursor em "Continuar" */
+    }
+    if (ej->pausado) {
+        atualizar_pausa(ej);
+        return;
+    }
+
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
     /* A camera segue o jogador em tempo real. Como o offset e o centro da
@@ -216,6 +231,38 @@ static void atualizar_combate(EstadoJogo *ej) {
         /* Onda acabou - Dev 2 sorteia cartas, vai pra tela de escolha */
         cartas_gerar_escolhas(ej);
         ej->proximo_estado = ESTADO_CARTAS_UPGRADE;
+    }
+}
+
+
+/* --- Submenu de PAUSA ----------------------------------------------------
+ * Setas (UP/DOWN ou W/S) navegam entre as opcoes; ENTER confirma; ESC volta
+ * ao jogo (atalho equivalente a "Continuar"). */
+static void atualizar_pausa(EstadoJogo *ej) {
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+        ej->opcao_pausa = 0;
+    }
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+        ej->opcao_pausa = 1;
+    }
+
+    /* ESC = atalho rapido pra fechar a pausa e voltar ao combate. */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->pausado = false;
+        return;
+    }
+
+    if (IsKeyPressed(KEY_ENTER)) {
+        if (ej->opcao_pausa == 0) {
+            /* Continuar: fecha a pausa e o combate retoma na proxima frame. */
+            ej->pausado = false;
+        } else {
+            /* Voltar ao menu: abandona a run, libera memoria, volta pro inicio. */
+            magias_liberar_tudo(ej);
+            inimigos_liberar_tudo(ej);
+            ej->pausado        = false;
+            ej->proximo_estado = ESTADO_MENU;
+        }
     }
 }
 
@@ -268,6 +315,9 @@ static void jogo_desenhar(const EstadoJogo *ej) {
 
         case ESTADO_COMBATE:
             desenhar_mundo_combate(ej);
+            if (ej->pausado) {
+                desenhar_overlay_pausa(ej);
+            }
             break;
 
         case ESTADO_CARTAS_UPGRADE:
@@ -336,6 +386,66 @@ static void desenhar_mundo_combate(const EstadoJogo *ej) {
         inimigos_desenhar(ej);
     EndMode2D();
     desenhar_hud(ej);
+}
+
+
+/* ============================================================================
+ * OVERLAY DE PAUSA
+ * --------------------------------------------------------------------------
+ * Pintado por cima do mundo congelado: dim escuro pra contraste + duas
+ * opcoes verticais. A opcao destacada usa GOLD; a outra fica cinza claro.
+ * ========================================================================== */
+static void desenhar_overlay_pausa(const EstadoJogo *ej) {
+    DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA, (Color){ 0, 0, 0, 180 });
+
+    DrawText("PAUSA",
+             LARGURA_TELA / 2 - 90, 180, 56, GOLD);
+
+    const char *rotulos[2] = { "Continuar", "Voltar ao menu" };
+    for (int i = 0; i < 2; i++) {
+        Color cor = (i == ej->opcao_pausa) ? GOLD : LIGHTGRAY;
+        int tamanho = (i == ej->opcao_pausa) ? 32 : 28;
+        int largura = MeasureText(rotulos[i], tamanho);
+        int x = LARGURA_TELA / 2 - largura / 2;
+        int y = 320 + i * 60;
+        DrawText(rotulos[i], x, y, tamanho, cor);
+
+        /* Cursor "> ... <" so na opcao destacada. */
+        if (i == ej->opcao_pausa) {
+            DrawText(">", x - 30, y, tamanho, GOLD);
+            DrawText("<", x + largura + 12, y, tamanho, GOLD);
+        }
+    }
+
+    DrawText("Setas para navegar  -  ENTER para confirmar  -  ESC para voltar",
+             LARGURA_TELA / 2 - 290, ALTURA_TELA - 60, 16, GRAY);
+}
+
+
+/* ============================================================================
+ * INICIAR NOVA RUN
+ * --------------------------------------------------------------------------
+ * Limpa o estado anterior (lista de inimigos, lista de magias, jogador) e
+ * gera uma profecia nova. Usado tanto na primeira vez quanto em re-entradas
+ * pelo menu (ex.: depois de "Voltar ao menu" no menu de pausa).
+ * ========================================================================== */
+static void iniciar_nova_run(EstadoJogo *ej) {
+    /* Libera o que sobrou da run anterior, se for o caso. */
+    magias_liberar_tudo(ej);
+    inimigos_liberar_tudo(ej);
+
+    /* Reseta jogador (HP cheio, posicao na origem do mundo, biomassa zerada). */
+    jogador_inicializar(&ej->jogador);
+
+    /* Camera volta a apontar pro jogador imediatamente, sem "voar" do
+     * lugar onde a run anterior parou. */
+    ej->camera.target = ej->jogador.posicao;
+
+    /* Profecia nova com seed aleatoria. */
+    profecia_gerar(&ej->profecia, (unsigned int)rand());
+
+    ej->pausado     = false;
+    ej->opcao_pausa = 0;
 }
 
 
