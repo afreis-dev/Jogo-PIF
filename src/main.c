@@ -202,15 +202,20 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
  * Se o jogador morrer, vai pra GAME_OVER. Se a onda acabar, vai pra
  * CARTAS_UPGRADE. ESC abre o menu de pausa. */
 static void atualizar_combate(EstadoJogo *ej) {
-    /* Toggle de pausa: ESC abre o menu sobreposto. Quando pausado, a logica
-     * de combate nao roda - tudo no mundo congela exatamente onde estava. */
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        ej->pausado     = true;
-        ej->opcao_pausa = 0;   /* default: cursor em "Continuar" */
-    }
+    /* Se ja esta pausado, despacha pra pausa e sai. Importante checar
+     * isso ANTES de detectar ESC, senao o mesmo frame que ABRIU a pausa
+     * cairia tambem no IsKeyPressed(ESC) la dentro e fecharia de volta -
+     * IsKeyPressed retorna true pra todas as chamadas no mesmo frame. */
     if (ej->pausado) {
         atualizar_pausa(ej);
         return;
+    }
+
+    /* Quando NAO esta pausado, ESC abre o menu sobreposto. */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->pausado     = true;
+        ej->opcao_pausa = 0;   /* default: cursor em "Continuar" */
+        return;                /* nao roda a logica de combate nesse frame */
     }
 
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
