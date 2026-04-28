@@ -37,6 +37,7 @@
 #define MAX_INIMIGOS      128   /* teto de seguranca pra lista de inimigos */
 #define CARTAS_POR_ESCOLHA 3    /* quantas cartas aparecem entre ondas */
 #define MAX_DADOS_JOGADOR 2     /* quantos dados o jogador leva por run */
+#define MAX_OBSTACULOS    40    /* sandbox: obstaculos do mapa (arvore, pedra) */
 
 /* ============================================================================
  * ENUMS - "Int com nome"
@@ -109,6 +110,14 @@ typedef enum {
     EF_ROUBO_DE_VIDA,       /* lifesteal */
     EF_TOTAL
 } Efeito;
+
+/* SANDBOX: tipos de obstaculo do mapa (arvore, pedra...). Cada tipo desenha
+ * de um jeito e tem raio diferente. */
+typedef enum {
+    OBSTACULO_ARVORE,
+    OBSTACULO_PEDRA,
+    OBSTACULO_TIPO_TOTAL
+} TipoObstaculo;
 
 /* Tipos de cartas de upgrade. Dev 2 popula e aplica. */
 typedef enum {
@@ -226,6 +235,17 @@ typedef struct {
 } Profecia;
 
 
+/* -------------------- OBSTACULO (SANDBOX) --------------------
+ * Objeto fixo no mundo. Bloqueia jogador e inimigos. Posicao gerada uma
+ * unica vez por run (deterministica a partir da seed da profecia).
+ * ------------------------------------------------------------- */
+typedef struct {
+    Vector2       posicao;
+    float         raio;
+    TipoObstaculo tipo;
+} Obstaculo;
+
+
 /* -------------------- CARTAS E DADOS (DEV 2) --------------------
  * Cartas de upgrade que aparecem entre ondas. Dados sao rolados pra
  * modificar o valor das cartas.
@@ -314,6 +334,13 @@ typedef struct {
      * destacada (0 = continuar, 1 = menu). */
     bool      pausado;
     int       opcao_pausa;
+
+    /* --- Obstaculos do mapa (sandbox) ---
+     * Array fixo com layout gerado a partir da seed da run. qtd_obstaculos
+     * eh quantos slots do array estao realmente preenchidos. Bloqueiam tanto
+     * o jogador quanto os inimigos. */
+    Obstaculo obstaculos[MAX_OBSTACULOS];
+    int       qtd_obstaculos;
 } EstadoJogo;
 
 #endif /* TIPOS_H */
