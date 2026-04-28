@@ -76,11 +76,31 @@ void colisao_verificar_tudo(EstadoJogo *ej) {
     for (InimigoNo *ino = ej->inimigos_cabeca; ino != NULL; ino = ino->proximo) {
         if (!ino->dados.vivo) continue;   /* pula inimigos ja mortos */
 
-        if (colisao_circulo_circulo(ej->jogador.posicao, ej->jogador.raio,
-                                     ino->dados.posicao, ino->dados.raio)) {
+        /* Vetor do inimigo para o jogador. Distancia ao quadrado pra evitar
+         * sqrt no caso de "nao tocou". */
+        float dx = ej->jogador.posicao.x - ino->dados.posicao.x;
+        float dy = ej->jogador.posicao.y - ino->dados.posicao.y;
+        float distancia2 = dx * dx + dy * dy;
+        float soma_raios = ej->jogador.raio + ino->dados.raio;
+
+        if (distancia2 <= soma_raios * soma_raios) {
             jogador_sofrer_dano(&ej->jogador, (int)ino->dados.dano);
-            /* Nota: no jogo final, seria legal aplicar knockback ou
-             * cooldown de hit aqui. Por ora, dano puro. */
+
+            /* SANDBOX: COLISAO FISICA. Empurra o jogador pra fora do inimigo
+             * pela quantidade do "overlap" (quanto eles estao se sobrepondo).
+             * Resultado: o inimigo bloqueia o jogador em vez de ser atravessado.
+             *
+             * Caso degenerado (centros exatamente sobrepostos -> distancia=0):
+             * empurra pra direita por uma quantidade fixa, so pra evitar a
+             * divisao por zero. */
+            if (distancia2 > 0.0001f) {
+                float distancia = sqrtf(distancia2);
+                float overlap   = soma_raios - distancia;
+                ej->jogador.posicao.x += (dx / distancia) * overlap;
+                ej->jogador.posicao.y += (dy / distancia) * overlap;
+            } else {
+                ej->jogador.posicao.x += soma_raios;
+            }
         }
     }
 
