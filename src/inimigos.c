@@ -61,7 +61,39 @@ void inimigos_atualizar(EstadoJogo *ej) {
         ino->dados.posicao.y += dir.y * ino->dados.velocidade_movimento * dt;
     }
 
-    /* SEGUNDA PASSADA: remover os mortos (vivo = false foi marcado pela
+    /* SEGUNDA PASSADA: COLISAO ENTRE INIMIGOS.
+     * Pra cada par (a, b) de inimigos vivos, se os circulos estao se sobrepondo,
+     * empurra cada um pelo overlap/2 em direcoes opostas. Resultado: eles
+     * formam aglomerados em vez de empilhar no mesmo pixel.
+     *
+     * O(N^2). Pra ate ~50 inimigos vivos da uns 1250 pares - tranquilo. */
+    for (InimigoNo *a = ej->inimigos_cabeca; a != NULL; a = a->proximo) {
+        if (!a->dados.vivo) continue;
+
+        for (InimigoNo *b = a->proximo; b != NULL; b = b->proximo) {
+            if (!b->dados.vivo) continue;
+
+            float dx = b->dados.posicao.x - a->dados.posicao.x;
+            float dy = b->dados.posicao.y - a->dados.posicao.y;
+            float dist2 = dx * dx + dy * dy;
+            float soma_raios = a->dados.raio + b->dados.raio;
+
+            if (dist2 < soma_raios * soma_raios && dist2 > 0.0001f) {
+                float distancia = sqrtf(dist2);
+                float overlap   = soma_raios - distancia;
+                /* Cada um anda metade do overlap em direcoes opostas. */
+                float empurra_x = (dx / distancia) * (overlap * 0.5f);
+                float empurra_y = (dy / distancia) * (overlap * 0.5f);
+
+                a->dados.posicao.x -= empurra_x;
+                a->dados.posicao.y -= empurra_y;
+                b->dados.posicao.x += empurra_x;
+                b->dados.posicao.y += empurra_y;
+            }
+        }
+    }
+
+    /* TERCEIRA PASSADA: remover os mortos (vivo = false foi marcado pela
      * colisao.c). Truque do "ponteiro pro ponteiro" pra remover sem precisar
      * tratar o caso especial de "removendo a cabeca". */
     InimigoNo **ind = &ej->inimigos_cabeca;
