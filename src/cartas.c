@@ -23,6 +23,14 @@
 
 #include "cartas.h"
 
+#define INICIO_CARTA_X  160
+#define INICIO_CARTA_Y  200
+#define LARGURA_CARTA   240
+#define ALTURA_CARTA    320
+#define GAP_CARTAS      360
+
+
+
 void cartas_gerar_escolhas(EstadoJogo *ej) {
     (void)ej; /* TODO: Dev 2 - sortear 3 cartas em ej->escolhas_upgrade */
 }
@@ -33,5 +41,16 @@ void cartas_aplicar(EstadoJogo *ej, int indice_escolhido) {
 }
 
 void cartas_desenhar_ui(const EstadoJogo *ej) {
-    (void)ej; /* TODO: Dev 2 - desenhar 3 caixas com nome e descricao de cada carta */
+
+    DrawRectangle(INICIO_CARTA_X - 2 , INICIO_CARTA_Y - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, BLUE);
+    DrawRectangle(INICIO_CARTA_X , INICIO_CARTA_Y , LARGURA_CARTA, ALTURA_CARTA, BLACK);
+    
+
+    DrawRectangle(INICIO_CARTA_X + GAP_CARTAS - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, BLUE);
+    DrawRectangle(INICIO_CARTA_X + GAP_CARTAS , (INICIO_CARTA_Y), LARGURA_CARTA, ALTURA_CARTA, BLACK);
+
+    DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, BLUE);
+    DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) , (INICIO_CARTA_Y), LARGURA_CARTA, ALTURA_CARTA, BLACK);
+
+    (void)ej; 
 }
