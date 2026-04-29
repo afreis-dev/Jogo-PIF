@@ -35,6 +35,7 @@
 
 #define MAX_PROJETEIS     256   /* teto de seguranca pra lista de magias */
 #define MAX_INIMIGOS      128   /* teto de seguranca pra lista de inimigos */
+#define MAX_OBSTACULOS     40   /* teto de obstaculos do mapa por run */
 #define CARTAS_POR_ESCOLHA 3    /* quantas cartas aparecem entre ondas */
 #define MAX_DADOS_JOGADOR 2     /* quantos dados o jogador leva por run */
 
@@ -109,6 +110,15 @@ typedef enum {
     EF_ROUBO_DE_VIDA,       /* lifesteal */
     EF_TOTAL
 } Efeito;
+
+/* Tipos de obstaculo do mapa. Cada tipo desenha de um jeito (arvore tem
+ * tronco + copa, pedra eh um circulo cinza com volume) e tem range de raio
+ * proprio. Luisa decide a lista final na implementacao. */
+typedef enum {
+    OBSTACULO_ARVORE,
+    OBSTACULO_PEDRA,
+    OBSTACULO_TIPO_TOTAL
+} TipoObstaculo;
 
 /* Tipos de cartas de upgrade. Dev 2 popula e aplica. */
 typedef enum {
@@ -226,6 +236,23 @@ typedef struct {
 } Profecia;
 
 
+/* -------------------- OBSTACULOS DO MAPA (DEV 3) --------------------
+ * Objetos fixos no mundo (arvores, pedras...). Bloqueiam jogador e inimigos
+ * (push-out) mas nao causam dano. Layout deve ser gerado UMA vez no inicio
+ * da run, deterministico a partir da seed da profecia (mesma seed = mesmo
+ * mapa, pra debug/replay).
+ *
+ * Como sao fixos durante a run (nao spawnam nem somem em tempo de combate),
+ * usamos um ARRAY simples no EstadoJogo com qtd_obstaculos marcando quantos
+ * slots estao preenchidos. Nao precisa de lista encadeada aqui.
+ * ----------------------------------------------------------------- */
+typedef struct {
+    Vector2       posicao;
+    float         raio;
+    TipoObstaculo tipo;
+} Obstaculo;
+
+
 /* -------------------- CARTAS E DADOS (DEV 2) --------------------
  * Cartas de upgrade que aparecem entre ondas. Dados sao rolados pra
  * modificar o valor das cartas.
@@ -292,6 +319,13 @@ typedef struct {
      * Comecam em NULL = lista vazia. Dev 3 adiciona nos com malloc. */
     MagiaNo   *magias_cabeca;
     InimigoNo *inimigos_cabeca;
+
+    /* --- Obstaculos do mapa ---
+     * Array fixo populado uma vez no inicio da run (deterministico a partir
+     * da seed da profecia). qtd_obstaculos eh quantos slots estao realmente
+     * preenchidos. Bloqueiam o jogador e os inimigos. */
+    Obstaculo obstaculos[MAX_OBSTACULOS];
+    int       qtd_obstaculos;
 
     /* --- Opcoes de upgrade mostradas no estado CARTAS_UPGRADE ---
      * MATRIZ de 3 cartas (requisito obrigatorio). */

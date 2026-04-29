@@ -33,6 +33,7 @@
  * declaram as funcoes e os .c implementam versoes que nao fazem nada. */
 #include "magias.h"
 #include "inimigos.h"
+#include "obstaculos.h"
 #include "onda.h"
 #include "cartas.h"
 #include "dados.h"
@@ -177,6 +178,11 @@ static void atualizar_menu(EstadoJogo *ej) {
          * rand() retorna int, convertemos pra unsigned. */
         unsigned int seed = (unsigned int)rand();
         profecia_gerar(&ej->profecia, seed);
+
+        /* Mesma seed alimenta o gerador de obstaculos do mapa. Stub do Dev 3
+         * por enquanto - nao faz nada ate ela implementar. */
+        obstaculos_gerar(ej, seed);
+
         ej->proximo_estado = ESTADO_REVELACAO_PROFECIA;
     }
 }
@@ -208,6 +214,13 @@ static void atualizar_combate(EstadoJogo *ej) {
     onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
 
     colisao_verificar_tudo(ej);         /* Dev 1 - implementado */
+
+    /* Obstaculos do mapa bloqueiam tanto o jogador quanto os inimigos.
+     * Resolvidos APOS colisao_verificar_tudo pra ter a palavra final - assim
+     * inimigo nao consegue empurrar o jogador pra dentro de uma arvore.
+     * Stubs do Dev 3 por enquanto. */
+    obstaculos_resolver_jogador(ej);    /* stub Dev 3 */
+    obstaculos_resolver_inimigos(ej);   /* stub Dev 3 */
 
     if (ej->jogador.vida <= 0) {
         ej->proximo_estado = ESTADO_GAME_OVER;
@@ -267,17 +280,18 @@ static void jogo_desenhar(const EstadoJogo *ej) {
 
         case ESTADO_COMBATE:
             /* Tudo dentro de BeginMode2D e desenhado em COORD DE MUNDO:
-             * a camera aplica o offset automaticamente. Jogador, magias e
-             * inimigos vivem no mundo. */
+             * a camera aplica o offset automaticamente. Jogador, magias,
+             * inimigos e obstaculos vivem no mundo. */
             BeginMode2D(ej->camera);
                 desenhar_grid_mundo(&ej->camera);
+                obstaculos_desenhar(ej);  /* stub Dev 3 - mapa por baixo */
+                magias_desenhar(ej);      /* stub */
+                inimigos_desenhar(ej);    /* stub */
                 jogador_desenhar(&ej->jogador);
-                magias_desenhar(ej);    /* stub */
-                inimigos_desenhar(ej);  /* stub */
             EndMode2D();
             /* HUD e coord de TELA (fixa, nao rola com a camera). */
             desenhar_hud(ej);    /* stub */
-            
+
             break;
 
         case ESTADO_CARTAS_UPGRADE:
