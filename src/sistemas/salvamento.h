@@ -4,7 +4,7 @@
  *
  * RESPONSABILIDADE: Dev 2 (Sofia)
  *
- * Atende o REQUISITO OBRIGATÓRIO do PIF: leitura e escrita em arquivo.
+ * Atende o REQUISITO OBRIGATÓRIO de PIF: leitura e escrita em arquivo.
  *
  * O que salva: struct DadosSalvos (definida em tipos.h) em formato BINÁRIO.
  * Arquivo: saves/biomassa.dat

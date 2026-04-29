@@ -97,8 +97,6 @@ Jogo-PIF/
 
 ## Convenções de código C
 
-Pra quem é novo na linguagem (ou quer relembrar), três convenções que aparecem em todo arquivo do projeto:
-
 ### Header (`.h`) é o "cartão de visita" do módulo
 
 Cada módulo tem um par `nome.c` + `nome.h`:
@@ -145,7 +143,7 @@ A struct raiz `EstadoJogo` (definida em `tipos.h`) carrega TODO o estado da run:
 | F1 | Alternar modo debug |
 | ESC | Sair |
 
-## Conceitos obrigatórios do PIF implementados
+## Conceitos obrigatórios de PIF implementados
 
 | Conceito | Onde |
 |----------|------|
