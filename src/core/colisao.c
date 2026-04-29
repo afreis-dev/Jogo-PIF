@@ -1,19 +1,19 @@
 /* ============================================================================
- * colisao.c - IMPLEMENTACAO DO SISTEMA DE COLISAO
+ * colisao.c - IMPLEMENTAÇÃO DO SISTEMA DE COLISÃO
  * ============================================================================
  *
- * Colisao em jogos 2D se resume a: "essas duas formas estao se sobrepondo?".
+ * Colisão em jogos 2D se resume a: "essas duas formas estão se sobrepondo?".
  *
  * TRUQUE DE PERFORMANCE IMPORTANTE:
- *   Pra saber se dois circulos se tocam, o calculo direto seria
+ *   Pra saber se dois círculos se tocam, o cálculo direto seria
  *     distancia = sqrt((ax-bx)^2 + (ay-by)^2);
  *     se distancia <= ra + rb, tocam.
- *   Mas sqrt e caro. Podemos comparar o QUADRADO da distancia com o QUADRADO
- *   dos raios somados - da o mesmo resultado sem o sqrt.
+ *   Mas sqrt é caro. Podemos comparar o QUADRADO da distância com o QUADRADO
+ *   dos raios somados — dá o mesmo resultado sem o sqrt.
  *
  * COMPLEXIDADE:
- *   colisao_verificar_tudo e O(N*M) onde N=magias, M=inimigos. Pra ~100
- *   inimigos x 200 projeteis = 20000 checagens por frame. A 60fps isso e
+ *   colisao_verificar_tudo é O(N×M) onde N=magias, M=inimigos. Pra ~100
+ *   inimigos × 200 projéteis = 20000 checagens por frame. A 60fps isso é
  *   ~1.2M/s, ainda tranquilo pra CPU moderna. Se virar gargalo, no futuro
  *   dava pra usar grid espacial, mas por ora KISS.
  * ========================================================================== */
@@ -23,20 +23,20 @@
 #include <math.h>
 
 
-/* ----- PRIMITIVA: CIRCULO x CIRCULO ----- */
+/* ----- PRIMITIVA: CÍRCULO × CÍRCULO ----- */
 bool colisao_circulo_circulo(Vector2 a, float ra, Vector2 b, float rb) {
     float dx = a.x - b.x;
     float dy = a.y - b.y;
-    float dist2 = dx * dx + dy * dy;     /* distancia ao quadrado */
+    float dist2 = dx * dx + dy * dy;     /* distância ao quadrado */
     float soma_raios = ra + rb;
     return dist2 <= soma_raios * soma_raios;
 }
 
 
-/* ----- PRIMITIVA: CAIXA x CAIXA (AABB - Axis-Aligned Bounding Box) ----- */
+/* ----- PRIMITIVA: CAIXA × CAIXA (AABB - Axis-Aligned Bounding Box) ----- */
 bool colisao_caixa_caixa(Rectangle a, Rectangle b) {
-    /* Se uma caixa termina antes da outra comecar em qualquer eixo,
-     * nao ha colisao. Todos os 4 testes precisam passar. */
+    /* Se uma caixa termina antes da outra começar em qualquer eixo,
+     * não há colisão. Todos os 4 testes precisam passar. */
     return a.x < b.x + b.width  &&
            a.x + a.width  > b.x &&
            a.y < b.y + b.height &&
@@ -44,10 +44,10 @@ bool colisao_caixa_caixa(Rectangle a, Rectangle b) {
 }
 
 
-/* ----- PRIMITIVA: CIRCULO x CAIXA -----
- * Acha o ponto da caixa mais proximo do circulo (com clamp) e checa
- * distancia daquele ponto ate o centro do circulo.
- * fminf/fmaxf sao da math.h - versoes em float de min/max. */
+/* ----- PRIMITIVA: CÍRCULO × CAIXA -----
+ * Acha o ponto da caixa mais próximo do círculo (com clamp) e checa
+ * distância daquele ponto até o centro do círculo.
+ * fminf/fmaxf são da math.h — versões em float de min/max. */
 bool colisao_circulo_caixa(Vector2 c, float r, Rectangle caixa) {
     float mais_proximo_x = fmaxf(caixa.x,
                                   fminf(c.x, caixa.x + caixa.width));
@@ -60,42 +60,42 @@ bool colisao_circulo_caixa(Vector2 c, float r, Rectangle caixa) {
 
 
 /* ============================================================================
- * VERIFICACAO DE ALTO NIVEL
+ * VERIFICAÇÃO DE ALTO NÍVEL
  * --------------------------------------------------------------------------
- * Percorre as LISTAS ENCADEADAS do estado do jogo e resolve colisoes.
+ * Percorre as LISTAS ENCADEADAS do estado do jogo e resolve colisões.
  *
- * Caminhar em lista encadeada: comeca em "cabeca" e segue "proximo" ate NULL.
+ * Caminhar em lista encadeada: começa em "cabeça" e segue "próximo" até NULL.
  *   for (InimigoNo *ino = ej->inimigos_cabeca; ino != NULL; ino = ino->proximo)
  *
- * Nao removemos nos aqui - so marcamos "vivo = false". A remocao efetiva
- * (com free) fica com quem cuida das listas: Dev 3 nos modulos magias.c e
- * inimigos.c. Separar essas responsabilidades evita bugs de "uso apos free".
+ * Não removemos nós aqui — só marcamos "vivo = false". A remoção efetiva
+ * (com free) fica com quem cuida das listas: Dev 3 nos módulos magias.c e
+ * inimigos.c. Separar essas responsabilidades evita bugs de "uso após free".
  * ========================================================================== */
 void colisao_verificar_tudo(EstadoJogo *ej) {
     /* ---- 1. Jogador vs Inimigos ---- */
     for (InimigoNo *ino = ej->inimigos_cabeca; ino != NULL; ino = ino->proximo) {
-        if (!ino->dados.vivo) continue;   /* pula inimigos ja mortos */
+        if (!ino->dados.vivo) continue;   /* pula inimigos já mortos */
 
-        /* Vetor do inimigo para o jogador. Distancia ao quadrado pra evitar
-         * sqrt no caso de "nao tocou". */
+        /* Vetor do inimigo para o jogador. Distância ao quadrado pra evitar
+         * sqrt no caso de "não tocou". */
         float dx = ej->jogador.posicao.x - ino->dados.posicao.x;
         float dy = ej->jogador.posicao.y - ino->dados.posicao.y;
         float distancia2 = dx * dx + dy * dy;
         float soma_raios = ej->jogador.raio + ino->dados.raio;
 
         if (distancia2 <= soma_raios * soma_raios) {
-            /* Dano por contato. Por enquanto puro - no jogo final, seria
+            /* Dano por contato. Por enquanto puro — no jogo final, seria
              * legal aplicar knockback ou cooldown de hit aqui. */
             jogador_sofrer_dano(&ej->jogador, (int)ino->dados.dano);
 
-            /* COLISAO FISICA: empurra o jogador pra fora do inimigo pela
-             * quantidade do "overlap" (quanto eles estao se sobrepondo).
+            /* COLISÃO FÍSICA: empurra o jogador pra fora do inimigo pela
+             * quantidade do "overlap" (quanto eles estão se sobrepondo).
              * Resultado: o inimigo bloqueia o jogador em vez de ser
              * atravessado.
              *
-             * Caso degenerado (centros exatamente sobrepostos -> distancia=0):
-             * empurra pra direita por uma quantidade fixa, so pra evitar a
-             * divisao por zero. */
+             * Caso degenerado (centros exatamente sobrepostos → distância=0):
+             * empurra pra direita por uma quantidade fixa, só pra evitar a
+             * divisão por zero. */
             if (distancia2 > 0.0001f) {
                 float distancia = sqrtf(distancia2);
                 float overlap   = soma_raios - distancia;
@@ -107,7 +107,7 @@ void colisao_verificar_tudo(EstadoJogo *ej) {
         }
     }
 
-    /* ---- 2. Magias (projeteis) vs Inimigos ---- */
+    /* ---- 2. Magias (projéteis) vs Inimigos ---- */
     for (MagiaNo *mno = ej->magias_cabeca; mno != NULL; mno = mno->proxima) {
         if (!mno->dados.viva) continue;
 
@@ -117,18 +117,18 @@ void colisao_verificar_tudo(EstadoJogo *ej) {
 
             if (!ino->dados.vivo) continue;
 
-            /* Raio do projetil e fixo em 6 pixels por enquanto.
+            /* Raio do projétil é fixo em 6 pixels por enquanto.
              * Dev 3 pode mudar isso adicionando "raio" na struct Magia. */
             if (colisao_circulo_circulo(mno->dados.posicao, 6.0f,
                                          ino->dados.posicao, ino->dados.raio)) {
                 ino->dados.vida -= (int)mno->dados.dano;
-                mno->dados.viva = false;    /* projetil some no hit */
+                mno->dados.viva = false;    /* projétil some no hit */
 
                 if (ino->dados.vida <= 0) {
                     ino->dados.vivo = false;
                     ej->jogador.biomassa += ino->dados.recompensa_biomassa;
                 }
-                /* break opcional aqui se projetil so pode atingir 1 inimigo.
+                /* break opcional aqui se projétil só pode atingir 1 inimigo.
                  * Omitido pra deixar brecha pra piercing shots. */
             }
         }

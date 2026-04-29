@@ -1,14 +1,19 @@
 /* ============================================================================
- * profecia.c - IMPLEMENTACAO DO GERADOR DE PROFECIAS
+ * profecia.c - IMPLEMENTAÇÃO DO GERADOR DE PROFECIAS
  * ============================================================================
  *
  * CONCEITOS IMPORTANTES USADOS AQUI:
- *   - MATRIZES de strings (requisito obrigatorio do PIF): tabelas fixas com
- *     os nomes de cada enum. Consulta direta por indice.
- *   - Gerador pseudoaleatorio deterministico via srand(seed) + rand().
- *     Mesmo seed = mesma profecia toda vez.
- *   - "static const" nas tabelas: "static" = visivel so nesse arquivo;
- *     "const" = somente leitura. Protege contra modificacao acidental.
+ *   - MATRIZES de strings (requisito obrigatório do PIF): tabelas fixas com
+ *     os nomes de cada enum. Consulta direta por índice.
+ *   - Gerador pseudoaleatório determinístico via srand(seed) + rand().
+ *     Mesma seed = mesma profecia toda vez.
+ *   - "static const" nas tabelas: "static" = visível só nesse arquivo;
+ *     "const" = somente leitura. Protege contra modificação acidental.
+ *
+ * ATENÇÃO: as strings das tabelas abaixo VÃO PARA O DrawText() em
+ * profecia_desenhar. Como a fonte default do Raylib é ASCII puro, as
+ * strings ficam SEM acentos ("Relampago", "Explosao") — se acentuar aqui,
+ * vira quadradinho na tela. Os comentários, sim, podem ter acento.
  * ========================================================================== */
 
 #include "profecia.h"
@@ -20,10 +25,12 @@
 /* ============================================================================
  * TABELAS DE NOMES
  * --------------------------------------------------------------------------
- * MATRIZES (arrays) de strings. Cada indice corresponde ao valor do enum.
+ * MATRIZES (arrays) de strings. Cada índice corresponde ao valor do enum.
  * Ordem tem que bater com a ordem dos enums em tipos.h.
  *
  * Exemplo: nomes_elementos[ELEMENTO_FOGO] = "Fogo"
+ *
+ * Strings sem acento de propósito (vão pra DrawText, fonte ASCII).
  * ========================================================================== */
 
 static const char *nomes_elementos[ELEMENTO_TOTAL] = {
@@ -65,15 +72,15 @@ static const char *nomes_efeitos[EF_TOTAL] = {
 
 
 /* ============================================================================
- * GERACAO DA PROFECIA
+ * GERAÇÃO DA PROFECIA
  * --------------------------------------------------------------------------
- * srand(seed) reinicia o gerador aleatorio com um valor fixo. A partir dai,
- * cada chamada de rand() produz a mesma sequencia de numeros. E por isso
+ * srand(seed) reinicia o gerador aleatório com um valor fixo. A partir daí,
+ * cada chamada de rand() produz a mesma sequência de números. É por isso
  * que "mesma seed = mesma profecia".
  *
  * rand() % N retorna um valor entre 0 e N-1, que cai exatamente no range
- * de um enum. Pequena imperfeicao: "modulo bias" - numeros baixos tem
- * probabilidade ligeiramente maior. Pra um projeto academico, irrelevante.
+ * de um enum. Pequena imperfeição: "modulo bias" — números baixos têm
+ * probabilidade ligeiramente maior. Pra um projeto acadêmico, irrelevante.
  * ========================================================================== */
 void profecia_gerar(Profecia *p, unsigned int seed) {
     p->seed = seed;
@@ -116,13 +123,13 @@ const char *efeito_nome(Efeito e) {
  * Mostra a profecia formatada na tela. Cada modificador em uma linha,
  * dourado pra dar destaque.
  *
- * snprintf e uma versao "segura" do sprintf: nunca escreve alem do tamanho
+ * snprintf é uma versão "segura" do sprintf: nunca escreve além do tamanho
  * do buffer, evitando buffer overflow.
  * ========================================================================== */
 void profecia_desenhar(const Profecia *p) {
     DrawText("PROFECIA", LARGURA_TELA / 2 - 130, 80, 56, GOLD);
 
-    /* Mostra seed pequena abaixo do titulo, pra identificar a run */
+    /* Mostra seed pequena abaixo do título, pra identificar a run */
     char buffer_seed[64];
     snprintf(buffer_seed, sizeof(buffer_seed), "Seed: %u", p->seed);
     DrawText(buffer_seed, LARGURA_TELA / 2 - 60, 160, 18, GRAY);
@@ -139,7 +146,7 @@ void profecia_desenhar(const Profecia *p) {
                  condicao_nome(p->mods[i].condicao),
                  efeito_nome(p->mods[i].efeito));
 
-        /* Espacamento vertical: cada linha 60 pixels abaixo da anterior. */
+        /* Espaçamento vertical: cada linha 60 pixels abaixo da anterior. */
         int y = 240 + i * 70;
         DrawText(buffer, 150, y, 26, WHITE);
     }

@@ -1,17 +1,17 @@
 /* ============================================================================
- * jogador.c - IMPLEMENTACAO DO MODULO JOGADOR
+ * jogador.c - IMPLEMENTAÇÃO DO MÓDULO JOGADOR
  * ============================================================================
  *
- * Movimentacao com WASD, colisao com as bordas da tela, HP.
+ * Movimentação com WASD, HP e indicador visual de direção.
  *
  * CONCEITOS IMPORTANTES USADOS AQUI:
  *   - Ponteiro pra struct: recebemos "Jogador *j" em vez de "Jogador j".
- *     Assim a funcao modifica o objeto ORIGINAL, sem copiar tudo.
+ *     Assim a função modifica o objeto ORIGINAL, sem copiar tudo.
  *   - Delta_tempo: multiplicamos velocidade pelo tempo decorrido desde o
- *     ultimo frame, garantindo velocidade constante mesmo com FPS variavel.
- *   - Normalizacao de vetor: ao apertar W+D (diagonal), o jogador nao pode
- *     andar mais rapido que na horizontal pura. Pra isso dividimos o vetor
- *     de direcao pelo seu comprimento.
+ *     último frame, garantindo velocidade constante mesmo com FPS variável.
+ *   - Normalização de vetor: ao apertar W+D (diagonal), o jogador não pode
+ *     andar mais rápido que na horizontal pura. Pra isso dividimos o vetor
+ *     de direção pelo seu comprimento.
  * ========================================================================== */
 
 #include "jogador.h"
@@ -19,12 +19,12 @@
 #include <math.h>    /* sqrtf para normalizar vetor */
 
 
-/* ----- INICIALIZACAO ----- */
+/* ----- INICIALIZAÇÃO ----- */
 void jogador_inicializar(Jogador *j) {
-    /* Posicao inicial: origem do mundo (0, 0). O mundo e infinito e a Camera2D
-     * enquadra o jogador sempre no centro da tela, entao nao importa onde ele
-     * comeca - importa que sua posicao seja interpretada em coordenadas de
-     * mundo, nao de tela. */
+    /* Posição inicial: origem do mundo (0, 0). O mundo é infinito e a Camera2D
+     * enquadra o jogador sempre no centro da tela, então não importa onde ele
+     * começa — importa que sua posição seja interpretada em coordenadas de
+     * mundo, não de tela. */
     j->posicao        = (Vector2){ 0.0f, 0.0f };
     j->velocidade     = (Vector2){ 0.0f, 0.0f };
     j->raio           = 16.0f;
@@ -35,24 +35,24 @@ void jogador_inicializar(Jogador *j) {
 }
 
 
-/* ----- ATUALIZACAO (chamada a cada frame durante combate) ----- */
+/* ----- ATUALIZAÇÃO (chamada a cada frame durante combate) ----- */
 void jogador_atualizar(Jogador *j, float delta_tempo) {
     /* 1. Ler input das teclas WASD.
-     * IsKeyDown retorna true ENQUANTO a tecla esta pressionada (diferente
-     * de IsKeyPressed, que so retorna true no frame em que foi apertada). */
+     * IsKeyDown retorna true ENQUANTO a tecla está pressionada (diferente
+     * de IsKeyPressed, que só retorna true no frame em que foi apertada). */
     Vector2 direcao = { 0.0f, 0.0f };
     if (IsKeyDown(KEY_W)) direcao.y -= 1.0f;   /* Y invertido: cima = negativo */
     if (IsKeyDown(KEY_S)) direcao.y += 1.0f;
     if (IsKeyDown(KEY_A)) direcao.x -= 1.0f;
     if (IsKeyDown(KEY_D)) direcao.x += 1.0f;
 
-    /* 2. Normalizar o vetor de direcao.
+    /* 2. Normalizar o vetor de direção.
      * Se o jogador aperta W+D ao mesmo tempo, direcao = (1, -1), cujo
-     * comprimento e sqrt(2) ~ 1.41. Dividindo pelo comprimento, o vetor fica
-     * com comprimento 1, e a velocidade na diagonal fica igual a horizontal.
+     * comprimento é sqrt(2) ~ 1.41. Dividindo pelo comprimento, o vetor fica
+     * com comprimento 1, e a velocidade na diagonal fica igual à horizontal.
      *
-     * Pulamos a divisao se comprimento = 0 (nenhuma tecla apertada) pra
-     * evitar divisao por zero. */
+     * Pulamos a divisão se comprimento = 0 (nenhuma tecla apertada) pra
+     * evitar divisão por zero. */
     float comprimento = sqrtf(direcao.x * direcao.x + direcao.y * direcao.y);
     if (comprimento > 0.0f) {
         direcao.x /= comprimento;
@@ -63,31 +63,31 @@ void jogador_atualizar(Jogador *j, float delta_tempo) {
     j->velocidade.x = direcao.x * j->velocidade_movimento;
     j->velocidade.y = direcao.y * j->velocidade_movimento;
 
-    /* 4. Integrar (mover a posicao). delta_tempo mantem o movimento suave. */
+    /* 4. Integrar (mover a posição). delta_tempo mantém o movimento suave. */
     j->posicao.x += j->velocidade.x * delta_tempo;
     j->posicao.y += j->velocidade.y * delta_tempo;
 
-    /* Sem clamp: o mundo e infinito (estilo Vampire Survivors). A sensacao de
-     * arena vem dos inimigos spawnando em volta do jogador, nao de paredes. */
+    /* Sem clamp: o mundo é infinito (estilo Vampire Survivors). A sensação de
+     * arena vem dos inimigos spawnando em volta do jogador, não de paredes. */
 }
 
 
 /* ----- DESENHO -----
- * Bolinha azul com contorno branco. Luisa (Dev 3) pode trocar por sprite depois.
+ * Bolinha azul com contorno branco. Luísa (Dev 3) pode trocar por sprite depois.
  *
- * Quando o jogador esta se movendo, um pontinho branco e desenhado no raio,
- * na direcao do movimento. Da leitura visual de "pra onde estou indo" sem
+ * Quando o jogador está se movendo, um pontinho branco é desenhado no raio,
+ * na direção do movimento. Dá leitura visual de "pra onde estou indo" sem
  * complicar o asset. Se estiver parado, o pontinho some. */
 void jogador_desenhar(const Jogador *j) {
     DrawCircleV(j->posicao, j->raio, SKYBLUE);
     DrawCircleLines((int)j->posicao.x, (int)j->posicao.y, j->raio, WHITE);
 
-    /* Comprimento do vetor velocidade. Se muito proximo de zero, esta parado. */
+    /* Comprimento do vetor velocidade. Se muito próximo de zero, está parado. */
     float vel2 = j->velocidade.x * j->velocidade.x +
                  j->velocidade.y * j->velocidade.y;
     if (vel2 > 0.01f) {
         float comprimento = sqrtf(vel2);
-        /* Normaliza a direcao e coloca o pontinho bem na borda, no raio. */
+        /* Normaliza a direção e coloca o pontinho bem na borda, no raio. */
         Vector2 indicador = {
             j->posicao.x + (j->velocidade.x / comprimento) * j->raio,
             j->posicao.y + (j->velocidade.y / comprimento) * j->raio
@@ -98,7 +98,7 @@ void jogador_desenhar(const Jogador *j) {
 
 
 /* ----- SOFRER DANO -----
- * Subtrai HP, clampa em zero (nao deixa negativo pra UI nao ficar estranha).
+ * Subtrai HP, clampa em zero (não deixa negativo pra UI não ficar estranha).
  * Main checa "vida <= 0" pra transicionar pra GAME_OVER. */
 void jogador_sofrer_dano(Jogador *j, int quantidade) {
     j->vida -= quantidade;

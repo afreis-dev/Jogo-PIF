@@ -1,10 +1,10 @@
 /* ============================================================================
- * inimigos.c - STUB DO MODULO DE INIMIGOS
+ * inimigos.c - STUB DO MÓDULO DE INIMIGOS
  * ============================================================================
  *
- * TODO: Dev 3 implementar este arquivo.
+ * TODO: Dev 3 (Luísa) implementar este arquivo.
  *
- * Dica de implementacao da IA basica (mover em direcao ao jogador):
+ * Dica de implementação da IA básica (mover em direção ao jogador):
  *
  *   Vector2 direcao;
  *   direcao.x = jogador.posicao.x - inimigo.posicao.x;
@@ -20,15 +20,15 @@
 #include <stdlib.h>
 
 void inimigos_atualizar(EstadoJogo *ej) {
-    (void)ej; /* TODO: Dev 3 - mover inimigos, remover mortos da lista */
+    (void)ej; /* TODO: Dev 3 — mover inimigos, remover mortos da lista */
 }
 
 void inimigos_desenhar(const EstadoJogo *ej) {
-    (void)ej; /* TODO: Dev 3 - DrawCircleV vermelho pra cada InimigoNo */
+    (void)ej; /* TODO: Dev 3 — DrawCircleV vermelho pra cada InimigoNo */
 }
 
 void inimigos_liberar_tudo(EstadoJogo *ej) {
-    /* TODO: Dev 3 - mesmo padrao de free do magias.c:
+    /* TODO: Dev 3 — mesmo padrão de free do magias.c:
      *
      * InimigoNo *atual = ej->inimigos_cabeca;
      * while (atual != NULL) {

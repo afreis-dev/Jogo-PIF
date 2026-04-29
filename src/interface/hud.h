@@ -2,15 +2,15 @@
  * hud.h - INTERFACE DO HUD (HEADS-UP DISPLAY)
  * ============================================================================
  *
- * RESPONSABILIDADE: Dev 2
+ * RESPONSABILIDADE: Dev 2 (Sofia)
  *
- * O HUD e a camada de interface que fica sobre o jogo durante o combate:
+ * O HUD é a camada de interface que fica sobre o jogo durante o combate:
  *   - Barra de vida do jogador
- *   - Numero da onda atual
+ *   - Número da onda atual
  *   - Contador de biomassa
- *   - Icones dos dados disponiveis
+ *   - Ícones dos dados disponíveis
  *
- * Fica como modulo separado pra nao poluir main.c com codigo de UI.
+ * Fica como módulo separado pra não poluir main.c com código de UI.
  * ========================================================================== */
 
 #ifndef HUD_H

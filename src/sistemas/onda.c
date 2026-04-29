@@ -2,9 +2,9 @@
  * onda.c - STUB DO SISTEMA DE ONDAS
  * ============================================================================
  *
- * TODO: Dev 3 implementar este arquivo.
+ * TODO: Dev 3 (Luísa) implementar este arquivo.
  *
- * Sugestao de formula pra escalada de dificuldade:
+ * Sugestão de fórmula pra escalada de dificuldade:
  *   inimigos_para_spawnar = 5 + numero_da_onda * 3;
  *   tempo_entre_spawns    = fmaxf(0.5f, 2.0f - numero_da_onda * 0.1f);
  *
@@ -20,7 +20,7 @@ void onda_inicializar(Onda *o, int numero_da_onda) {
     o->timer_spawn        = 0.0f;
     o->completa           = false;
 
-    /* TODO: Dev 3 - calcular inimigos_para_spawnar e tempo_entre_spawns */
+    /* TODO: Dev 3 — calcular inimigos_para_spawnar e tempo_entre_spawns */
     o->inimigos_para_spawnar = 0;
     o->tempo_entre_spawns    = 2.0f;
 }
@@ -28,6 +28,6 @@ void onda_inicializar(Onda *o, int numero_da_onda) {
 void onda_atualizar(Onda *o, EstadoJogo *ej) {
     (void)o;
     (void)ej;
-    /* TODO: Dev 3 - decrementar timer, spawnar inimigo quando zerar,
+    /* TODO: Dev 3 — decrementar timer, spawnar inimigo quando zerar,
      * verificar se todos morreram pra marcar o->completa = true. */
 }
