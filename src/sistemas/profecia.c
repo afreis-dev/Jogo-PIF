@@ -3,7 +3,7 @@
  * ============================================================================
  *
  * CONCEITOS IMPORTANTES USADOS AQUI:
- *   - MATRIZES de strings (requisito obrigatório do PIF): tabelas fixas com
+ *   - MATRIZES de strings (requisito obrigatório de PIF): tabelas fixas com
  *     os nomes de cada enum. Consulta direta por índice.
  *   - Gerador pseudoaleatório determinístico via srand(seed) + rand().
  *     Mesma seed = mesma profecia toda vez.

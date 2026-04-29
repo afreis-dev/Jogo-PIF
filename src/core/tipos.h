@@ -155,7 +155,7 @@ typedef struct {
  * POR QUE LISTA ENCADEADA?
  *   - Projéteis nascem e morrem o tempo todo (spawn e free constante).
  *   - Quantidade varia: ora 2, ora 150.
- *   - Lista encadeada atende o REQUISITO OBRIGATÓRIO do PIF de listas.
+ *   - Lista encadeada atende o REQUISITO OBRIGATÓRIO de PIF de listas.
  *   - Cada magia vira um "nó" alocado com malloc e liberado com free.
  * ---------------------------------------------------------------- */
 
@@ -273,7 +273,7 @@ typedef struct {
 
 /* -------------------- DADOS SALVOS (DEV 2) --------------------
  * Persistem entre runs. Dev 2 salva/carrega de saves/biomassa.dat
- * usando fwrite/fread (REQUISITO OBRIGATÓRIO do PIF: arquivo).
+ * usando fwrite/fread (REQUISITO OBRIGATÓRIO de PIF: arquivo).
  * ------------------------------------------------------------- */
 typedef struct {
     int  biomassa_total;            /* moeda acumulada em todas as runs */
