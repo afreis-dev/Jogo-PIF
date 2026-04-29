@@ -3,34 +3,34 @@
  * ============================================================================
  *
  * Responsabilidade: inicializar a janela do Raylib, rodar o loop principal
- * e chamar os modulos certos dependendo do estado atual do jogo.
+ * e chamar os módulos certos dependendo do estado atual do jogo.
  *
  * COMO FUNCIONA UM GAME LOOP:
  *   while (janela aberta) {
- *       1. Calcular delta_tempo (tempo desde o ultimo frame)
- *       2. Atualizar estado (mover coisas, checar colisao, etc.)
+ *       1. Calcular delta_tempo (tempo desde o último frame)
+ *       2. Atualizar estado (mover coisas, checar colisão, etc.)
  *       3. Desenhar tudo na tela
  *   }
- * A cada iteracao = 1 frame. Com SetTargetFPS(60), o Raylib garante que o loop
+ * A cada iteração = 1 frame. Com SetTargetFPS(60), o Raylib garante que o loop
  * roda ~60 vezes por segundo.
  *
- * IMPORTANTE - MAQUINA DE ESTADOS:
- *   O jogo tem varias "telas" (menu, combate, upgrade, game over). Em vez de
+ * IMPORTANTE — MÁQUINA DE ESTADOS:
+ *   O jogo tem várias "telas" (menu, combate, upgrade, game over). Em vez de
  *   ter um loop gigante com 20 if/else, usamos um ENUM (EstadoAtual) e um
- *   SWITCH que chama a funcao certa. Facil de adicionar novos estados depois.
+ *   SWITCH que chama a função certa. Fácil de adicionar novos estados depois.
  * ========================================================================== */
 
 #include "raylib.h"
 #include "tipos.h"
 
-/* Modulos implementados pelo Dev 1 (Arthur) */
+/* Módulos implementados pelo Dev 1 (Arthur) */
 #include "jogador.h"
 #include "profecia.h"
 #include "colisao.h"
 
-/* Modulos que sao STUBS por enquanto - Dev 2 e Dev 3 vao preencher.
- * O codigo compila e roda mesmo com stubs vazios porque os headers
- * declaram as funcoes e os .c implementam versoes que nao fazem nada. */
+/* Módulos que são STUBS por enquanto — Dev 2 e Dev 3 vão preencher.
+ * O código compila e roda mesmo com stubs vazios porque os headers
+ * declaram as funções e os .c implementam versões que não fazem nada. */
 #include "magias.h"
 #include "inimigos.h"
 #include "obstaculos.h"
@@ -47,8 +47,8 @@
 
 
 /* ============================================================================
- * PROTOTIPOS (declaracoes) de funcoes LOCAIS deste arquivo.
- * Ficam como "static" porque so sao usadas dentro de main.c.
+ * PROTÓTIPOS (declarações) de funções LOCAIS deste arquivo.
+ * Ficam como "static" porque só são usadas dentro de main.c.
  * ========================================================================== */
 static void jogo_inicializar(EstadoJogo *ej);
 static void jogo_atualizar(EstadoJogo *ej);
@@ -65,37 +65,37 @@ static void atualizar_game_over(EstadoJogo *ej);
 
 
 /* ============================================================================
- * MAIN - PONTO DE ENTRADA
+ * MAIN — PONTO DE ENTRADA
  * ========================================================================== */
 int main(void) {
-    /* 1. Inicializacao do Raylib (abre a janela, prepara contexto grafico) */
+    /* 1. Inicialização do Raylib (abre a janela, prepara contexto gráfico) */
     InitWindow(LARGURA_TELA, ALTURA_TELA, "AUGUR - Projeto PIF CESAR");
     SetTargetFPS(FPS_ALVO);
 
-    /* Inicializa o gerador aleatorio do sistema com o horario atual.
+    /* Inicializa o gerador aleatório do sistema com o horário atual.
      * Sem isso, toda vez que o jogo abre, as seeds seriam iguais. */
     srand((unsigned int)time(NULL));
 
     /* 2. Prepara o estado do jogo.
      * A sintaxe " = {0}" zera TODOS os campos da struct (ponteiros = NULL,
-     * numeros = 0, bools = false). E um idioma classico em C. */
+     * números = 0, bools = false). É um idioma clássico em C. */
     EstadoJogo ej = {0};
     jogo_inicializar(&ej);
 
     /* 3. LOOP PRINCIPAL.
-     * WindowShouldClose() = true quando o usuario clica no X ou aperta ESC.
-     * ESTADO_SAIR permite que a gente encerre pelo codigo tambem. */
+     * WindowShouldClose() = true quando o usuário clica no X ou aperta ESC.
+     * ESTADO_SAIR permite que a gente encerre pelo código também. */
     while (!WindowShouldClose() && ej.estado_atual != ESTADO_SAIR) {
         jogo_atualizar(&ej);
 
-        /* Bloco de desenho - tudo entre BeginDrawing e EndDrawing vai pra tela. */
+        /* Bloco de desenho — tudo entre BeginDrawing e EndDrawing vai pra tela. */
         BeginDrawing();
             ClearBackground(BLACK);   /* limpa o frame anterior */
             jogo_desenhar(&ej);
         EndDrawing();
     }
 
-    /* 4. Limpeza - libera memoria alocada dinamicamente e fecha a janela. */
+    /* 4. Limpeza — libera memória alocada dinamicamente e fecha a janela. */
     jogo_finalizar(&ej);
     CloseWindow();
     return 0;
@@ -103,9 +103,9 @@ int main(void) {
 
 
 /* ============================================================================
- * INICIALIZACAO
+ * INICIALIZAÇÃO
  * --------------------------------------------------------------------------
- * Chamada UMA VEZ no inicio. Prepara valores default das structs.
+ * Chamada UMA VEZ no início. Prepara valores default das structs.
  * ========================================================================== */
 static void jogo_inicializar(EstadoJogo *ej) {
     ej->estado_atual   = ESTADO_MENU;
@@ -114,11 +114,11 @@ static void jogo_inicializar(EstadoJogo *ej) {
     jogador_inicializar(&ej->jogador);
     salvamento_carregar(&ej->salvamento);   /* stub por enquanto */
 
-    /* Listas comecam vazias (cabeca = NULL) */
+    /* Listas começam vazias (cabeça = NULL) */
     ej->magias_cabeca   = NULL;
     ej->inimigos_cabeca = NULL;
 
-    /* Camera 2D: offset no centro da tela + target na posicao do jogador.
+    /* Câmera 2D: offset no centro da tela + target na posição do jogador.
      * Resultado: o jogador aparece sempre centralizado e o mundo "rola"
      * conforme ele anda. Zoom 1.0 = sem zoom. */
     ej->camera.offset   = (Vector2){ LARGURA_TELA / 2.0f, ALTURA_TELA / 2.0f };
@@ -131,12 +131,12 @@ static void jogo_inicializar(EstadoJogo *ej) {
 
 
 /* ============================================================================
- * ATUALIZACAO (LOGICA DO FRAME)
+ * ATUALIZAÇÃO (LÓGICA DO FRAME)
  * --------------------------------------------------------------------------
  * Chamada UMA VEZ POR FRAME. Decide o que acontece baseado no estado atual.
  * ========================================================================== */
 static void jogo_atualizar(EstadoJogo *ej) {
-    /* GetFrameTime() retorna quantos segundos passaram desde o ultimo frame.
+    /* GetFrameTime() retorna quantos segundos passaram desde o último frame.
      * Usamos pra movimento suave: "posicao += velocidade * delta_tempo"
      * garante velocidade constante mesmo se o FPS variar. */
     ej->delta_tempo = GetFrameTime();
@@ -148,8 +148,8 @@ static void jogo_atualizar(EstadoJogo *ej) {
         ej->modo_debug = !ej->modo_debug;
     }
 
-    /* DISPATCHER DA MAQUINA DE ESTADOS.
-     * Cada estado tem sua propria funcao de atualizacao. */
+    /* DISPATCHER DA MÁQUINA DE ESTADOS.
+     * Cada estado tem sua própria função de atualização. */
     switch (ej->estado_atual) {
         case ESTADO_MENU:               atualizar_menu(ej);               break;
         case ESTADO_REVELACAO_PROFECIA: atualizar_revelacao_profecia(ej); break;
@@ -159,10 +159,10 @@ static void jogo_atualizar(EstadoJogo *ej) {
         default: break;
     }
 
-    /* Transicao limpa entre estados.
-     * Se algum modulo mudou "proximo_estado", a troca efetiva acontece aqui,
+    /* Transição limpa entre estados.
+     * Se algum módulo mudou "proximo_estado", a troca efetiva acontece aqui,
      * ao final do frame. Isso evita bugs tipo "troquei de estado no meio do
-     * update e a funcao X ainda rodou com o estado errado". */
+     * update e a função X ainda rodou com o estado errado". */
     if (ej->proximo_estado != ej->estado_atual) {
         ej->estado_atual = ej->proximo_estado;
     }
@@ -170,17 +170,17 @@ static void jogo_atualizar(EstadoJogo *ej) {
 
 
 /* --- Estado: MENU ---------------------------------------------------------
- * Tela inicial. ENTER comeca uma nova run: gera a profecia e vai pra tela
- * de revelacao. */
+ * Tela inicial. ENTER começa uma nova run: gera a profecia e vai pra tela
+ * de revelação. */
 static void atualizar_menu(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
-        /* Gera profecia com uma seed aleatoria.
+        /* Gera profecia com uma seed aleatória.
          * rand() retorna int, convertemos pra unsigned. */
         unsigned int seed = (unsigned int)rand();
         profecia_gerar(&ej->profecia, seed);
 
-        /* Mesma seed alimenta o gerador de obstaculos do mapa. Stub do Dev 3
-         * por enquanto - nao faz nada ate ela implementar. */
+        /* Mesma seed alimenta o gerador de obstáculos do mapa. Stub do Dev 3
+         * por enquanto — não faz nada até ela implementar. */
         obstaculos_gerar(ej, seed);
 
         ej->proximo_estado = ESTADO_REVELACAO_PROFECIA;
@@ -188,8 +188,8 @@ static void atualizar_menu(EstadoJogo *ej) {
 }
 
 /* --- Estado: REVELACAO_PROFECIA -------------------------------------------
- * Mostra os 3 modificadores sorteados. Jogador le e aperta ESPACO pra
- * comecar o combate. */
+ * Mostra os 3 modificadores sorteados. Jogador lê e aperta ESPAÇO pra
+ * começar o combate. */
 static void atualizar_revelacao_profecia(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_SPACE)) {
         /* Prepara onda 1 (stub do Dev 3) */
@@ -199,25 +199,25 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
 }
 
 /* --- Estado: COMBATE ------------------------------------------------------
- * O coracao do jogo. Atualiza jogador, magias, inimigos, onda, colisoes.
+ * O coração do jogo. Atualiza jogador, magias, inimigos, onda, colisões.
  * Se o jogador morrer, vai pra GAME_OVER. Se a onda acabar, vai pra
  * CARTAS_UPGRADE. */
 static void atualizar_combate(EstadoJogo *ej) {
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
-    /* A camera segue o jogador em tempo real. Como o offset e o centro da
-     * tela, isso mantem o player sempre centralizado e o mundo rola em volta. */
+    /* A câmera segue o jogador em tempo real. Como o offset é o centro da
+     * tela, isso mantém o player sempre centralizado e o mundo rola em volta. */
     ej->camera.target = ej->jogador.posicao;
 
     magias_atualizar(ej);               /* stub Dev 3 */
     inimigos_atualizar(ej);             /* stub Dev 3 */
     onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
 
-    colisao_verificar_tudo(ej);         /* Dev 1 - implementado */
+    colisao_verificar_tudo(ej);         /* Dev 1 — implementado */
 
-    /* Obstaculos do mapa bloqueiam tanto o jogador quanto os inimigos.
-     * Resolvidos APOS colisao_verificar_tudo pra ter a palavra final - assim
-     * inimigo nao consegue empurrar o jogador pra dentro de uma arvore.
+    /* Obstáculos do mapa bloqueiam tanto o jogador quanto os inimigos.
+     * Resolvidos APÓS colisao_verificar_tudo pra ter a palavra final — assim
+     * inimigo não consegue empurrar o jogador pra dentro de uma árvore.
      * Stubs do Dev 3 por enquanto. */
     obstaculos_resolver_jogador(ej);    /* stub Dev 3 */
     obstaculos_resolver_inimigos(ej);   /* stub Dev 3 */
@@ -225,7 +225,7 @@ static void atualizar_combate(EstadoJogo *ej) {
     if (ej->jogador.vida <= 0) {
         ej->proximo_estado = ESTADO_GAME_OVER;
     } else if (ej->onda_atual.completa) {
-        /* Onda acabou - Dev 2 sorteia cartas, vai pra tela de escolha */
+        /* Onda acabou — Dev 2 sorteia cartas, vai pra tela de escolha */
         cartas_gerar_escolhas(ej);
         ej->proximo_estado = ESTADO_CARTAS_UPGRADE;
     }
@@ -233,9 +233,9 @@ static void atualizar_combate(EstadoJogo *ej) {
 
 /* --- Estado: CARTAS_UPGRADE ------------------------------------------------
  * Tela de escolha entre ondas. Dev 2 processa input de 1/2/3 pra escolher
- * carta. Depois vai de volta pro combate (proxima onda). */
+ * carta. Depois vai de volta pro combate (próxima onda). */
 static void atualizar_cartas_upgrade(EstadoJogo *ej) {
-    /* Placeholder: pula pra proxima onda apertando ESPACO.
+    /* Placeholder: pula pra próxima onda apertando ESPAÇO.
      * Dev 2 substitui por input real das cartas. */
     if (IsKeyPressed(KEY_SPACE)) {
         onda_inicializar(&ej->onda_atual, ej->onda_atual.numero + 1);
@@ -247,18 +247,23 @@ static void atualizar_cartas_upgrade(EstadoJogo *ej) {
  * Mostra score, seed e espera input. */
 static void atualizar_game_over(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
-        /* Volta pro menu. Poderia tambem salvar o score aqui (Dev 2). */
+        /* Volta pro menu. Poderia também salvar o score aqui (Dev 2). */
         ej->proximo_estado = ESTADO_MENU;
     }
 }
 
 
 /* ============================================================================
- * DESENHO (RENDERIZACAO DO FRAME)
+ * DESENHO (RENDERIZAÇÃO DO FRAME)
  * --------------------------------------------------------------------------
- * Chamada UMA VEZ POR FRAME, depois de atualizar. So desenha - NAO modifica
- * estado (por isso o ponteiro e "const"). Cada estado desenha uma coisa
+ * Chamada UMA VEZ POR FRAME, depois de atualizar. Só desenha — NÃO modifica
+ * estado (por isso o ponteiro é "const"). Cada estado desenha uma coisa
  * diferente.
+ *
+ * NOTA SOBRE ACENTOS NAS STRINGS:
+ *   A fonte default do Raylib é ASCII puro. Strings dentro de DrawText("...")
+ *   ficam SEM acento ("ESPACO", "Pressione ENTER") porque acentos virariam
+ *   quadradinhos na tela. Os comentários, esses sim, podem ter acento.
  * ========================================================================== */
 static void jogo_desenhar(const EstadoJogo *ej) {
     switch (ej->estado_atual) {
@@ -279,17 +284,17 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
-            /* Tudo dentro de BeginMode2D e desenhado em COORD DE MUNDO:
-             * a camera aplica o offset automaticamente. Jogador, magias,
-             * inimigos e obstaculos vivem no mundo. */
+            /* Tudo dentro de BeginMode2D é desenhado em COORD DE MUNDO:
+             * a câmera aplica o offset automaticamente. Jogador, magias,
+             * inimigos e obstáculos vivem no mundo. */
             BeginMode2D(ej->camera);
                 desenhar_grid_mundo(&ej->camera);
-                obstaculos_desenhar(ej);  /* stub Dev 3 - mapa por baixo */
+                obstaculos_desenhar(ej);  /* stub Dev 3 — mapa por baixo */
                 magias_desenhar(ej);      /* stub */
                 inimigos_desenhar(ej);    /* stub */
                 jogador_desenhar(&ej->jogador);
             EndMode2D();
-            /* HUD e coord de TELA (fixa, nao rola com a camera). */
+            /* HUD é coord de TELA (fixa, não rola com a câmera). */
             desenhar_hud(ej);    /* stub */
 
             break;
@@ -315,7 +320,7 @@ static void jogo_desenhar(const EstadoJogo *ej) {
         default: break;
     }
 
-    /* Overlay de debug - por cima de tudo. */
+    /* Overlay de debug — por cima de tudo. */
     if (ej->modo_debug) {
         DrawFPS(10, 10);
         DrawText("DEBUG [F1]", 10, 30, 14, LIME);
@@ -326,31 +331,31 @@ static void jogo_desenhar(const EstadoJogo *ej) {
 /* ============================================================================
  * LIMPEZA FINAL
  * --------------------------------------------------------------------------
- * Chamada UMA VEZ no fim. Libera memoria e salva progresso.
+ * Chamada UMA VEZ no fim. Libera memória e salva progresso.
  * ========================================================================== */
 static void jogo_finalizar(EstadoJogo *ej) {
-    magias_liberar_tudo(ej);      /* stub - libera lista encadeada */
-    inimigos_liberar_tudo(ej);    /* stub - libera lista encadeada */
-    salvamento_salvar(&ej->salvamento);  /* stub - grava arquivo */
+    magias_liberar_tudo(ej);      /* stub — libera lista encadeada */
+    inimigos_liberar_tudo(ej);    /* stub — libera lista encadeada */
+    salvamento_salvar(&ej->salvamento);  /* stub — grava arquivo */
 }
 
 
 /* ============================================================================
- * GRID DE REFERENCIA DO MUNDO
+ * GRID DE REFERÊNCIA DO MUNDO
  * --------------------------------------------------------------------------
- * Desenha linhas finas em intervalos fixos, mas SO NA AREA VISIVEL da camera.
- * Isso da sensacao de "mundo infinito" (as linhas aparecem rolando conforme o
- * jogador anda) sem precisar renderizar milhoes de linhas - so as que cabem
+ * Desenha linhas finas em intervalos fixos, mas SÓ NA ÁREA VISÍVEL da câmera.
+ * Isso dá sensação de "mundo infinito" (as linhas aparecem rolando conforme o
+ * jogador anda) sem precisar renderizar milhões de linhas — só as que cabem
  * na tela a cada frame.
  *
- * Como deve ser chamada dentro de BeginMode2D, usamos coord de mundo: a area
- * visivel em mundo vai de (target - tela/2/zoom) ate (target + tela/2/zoom).
+ * Como deve ser chamada dentro de BeginMode2D, usamos coord de mundo: a área
+ * visível em mundo vai de (target - tela/2/zoom) até (target + tela/2/zoom).
  * ========================================================================== */
 static void desenhar_grid_mundo(const Camera2D *camera) {
-    const float ESPACAMENTO = 128.0f;     /* distancia entre linhas, em pixels de mundo */
+    const float ESPACAMENTO = 128.0f;     /* distância entre linhas, em pixels de mundo */
     const Color COR_GRID    = (Color){ 30, 30, 45, 255 };  /* azul bem escuro, discreto */
 
-    /* Limites visiveis em coord de mundo. zoom divide porque zoom 2 mostra
+    /* Limites visíveis em coord de mundo. zoom divide porque zoom 2 mostra
      * metade do mundo, zoom 0.5 mostra o dobro. */
     float meia_largura = (LARGURA_TELA / 2.0f) / camera->zoom;
     float meia_altura  = (ALTURA_TELA  / 2.0f) / camera->zoom;
@@ -360,8 +365,8 @@ static void desenhar_grid_mundo(const Camera2D *camera) {
     float topo     = camera->target.y - meia_altura;
     float baixo    = camera->target.y + meia_altura;
 
-    /* Alinha o inicio pra cair num multiplo de ESPACAMENTO (efeito de grid
-     * "fixo no mundo", nao colado na camera). */
+    /* Alinha o início pra cair num múltiplo de ESPACAMENTO (efeito de grid
+     * "fixo no mundo", não colado na câmera). */
     float primeiro_x = floorf(esquerda / ESPACAMENTO) * ESPACAMENTO;
     float primeiro_y = floorf(topo     / ESPACAMENTO) * ESPACAMENTO;
 

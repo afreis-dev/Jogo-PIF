@@ -1,6 +1,17 @@
 /* ============================================================================
- * hud.c - STUB DO HUD
+ * hud.c - IMPLEMENTAÇÃO DO HUD
+ * ============================================================================
+ *
+ * RESPONSABILIDADE: Sofia (Dev 2)
+ *
+ * Compõe a HUD chamando 3 helpers (barra de vida, contador de onda, moeda
+ * de biomassa) e expõe uma única função pública desenhar_hud() que junta
+ * tudo. Main chama essa função UMA vez por frame, depois do mundo desenhado.
+ *
+ * Strings de DrawText ficam em ASCII puro porque a fonte default do Raylib
+ * não renderiza acento.
  * ============================================================================*/
+
 #include "hud.h"
 #include <stdio.h>
 
@@ -11,9 +22,12 @@
 #define HUD_FONTE_MEDIA    20
 #define HUD_FONTE_GRANDE   22
 
-#define DADO_TAMANHO       40   
-#define DADO_ESPACO        10  
+#define DADO_TAMANHO       40
+#define DADO_ESPACO        10
 
+
+/* Barra de vida no canto superior esquerdo. A cor muda conforme a porcentagem:
+ *   >= 50% verde, > 30% amarelo, senão vermelho. */
 void hud_desenhar_barra_vida(const EstadoJogo *ej)
 {
     int x = HUD_MARGEM;
@@ -48,6 +62,7 @@ void hud_desenhar_barra_vida(const EstadoJogo *ej)
 }
 
 
+/* Contador da onda atual, centralizado no topo. */
 void hud_desenhar_onda(const EstadoJogo *ej){
 
     char buf[32];
@@ -55,27 +70,32 @@ void hud_desenhar_onda(const EstadoJogo *ej){
     DrawText(buf, LARGURA_TELA / 2 - 40, HUD_MARGEM, HUD_FONTE_GRANDE ,GOLD);
 }
 
+
+/* Moeda de biomassa: círculo dourado/amarelo + cifrão "$" no centro,
+ * com a quantidade ao lado. Posicionada logo abaixo da barra de vida. */
 void hud_desenhar_biomassa(const EstadoJogo *ej)
 {
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", ej->jogador.biomassa);
 
-    
+
     int moeda_raio = HUD_MARGEM - 2;
     int moeda_x = HUD_MARGEM + moeda_raio;
     int moeda_y = HUD_MARGEM + HUD_BARRA_ALT + HUD_MARGEM + moeda_raio;
-    
+
     DrawCircle(moeda_x, moeda_y, moeda_raio + 2, GOLD);
     DrawCircle(moeda_x, moeda_y, moeda_raio, YELLOW);
     int cifrao = MeasureText("B", HUD_FONTE_PEQUENA);
     DrawText("$", moeda_x - cifrao / 2, moeda_y - HUD_FONTE_PEQUENA / 2, HUD_FONTE_PEQUENA, GOLD);
-    
+
     int quant_moeda_x = moeda_x + moeda_raio + 7;
     int quant_moeda_y = moeda_y - HUD_FONTE_MEDIA / 2;
 
     DrawText(buf, quant_moeda_x, quant_moeda_y, HUD_FONTE_MEDIA, WHITE);
 }
 
+
+/* Função pública chamada por main.c — agrega todos os elementos da HUD. */
 void desenhar_hud(const EstadoJogo *ej){
     hud_desenhar_barra_vida(ej);
     hud_desenhar_onda(ej);

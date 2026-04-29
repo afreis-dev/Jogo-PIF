@@ -3,13 +3,13 @@
 # ============================================================================
 #
 # Estrutura modular:
-#   src/core/         loop principal, contrato (tipos.h), colisao
-#   src/entidades/    jogador, inimigos, magias (e futuros: obstaculos)
+#   src/core/         loop principal, contrato (tipos.h), colisão
+#   src/entidades/    jogador, inimigos, magias, obstáculos
 #   src/sistemas/     profecia, onda, cartas, dados, salvamento
 #   src/interface/    hud
 #
-# Cada modulo eh uma pasta. O Makefile descobre automaticamente todos os
-# .c e adiciona cada subpasta no -I do compilador, entao os #include
+# Cada módulo é uma pasta. O Makefile descobre automaticamente todos os
+# .c e adiciona cada subpasta no -I do compilador, então os #include
 # continuam podendo ser por nome simples (ex.: #include "tipos.h").
 # ============================================================================
 
@@ -19,7 +19,7 @@ PKG_CONFIG := pkg-config
 # Descobre todos os .c em src/ e em qualquer subpasta direta de src/.
 FONTES := $(wildcard src/*.c) $(wildcard src/*/*.c)
 
-# -I para cada modulo, pra que #include "header.h" funcione sem precisar
+# -I para cada módulo, pra que #include "header.h" funcione sem precisar
 # escrever o caminho completo.
 INCLUDES := -Isrc -Isrc/core -Isrc/entidades -Isrc/sistemas -Isrc/interface
 

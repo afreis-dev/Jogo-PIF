@@ -1,45 +1,45 @@
 /* ============================================================================
- * obstaculos.c - STUB DO MODULO DE OBSTACULOS
+ * obstaculos.c - STUB DO MÓDULO DE OBSTÁCULOS
  * ============================================================================
  *
- * TODO: Dev 3 (Luisa) implementar este arquivo.
+ * TODO: Dev 3 (Luísa) implementar este arquivo.
  *
- * Por enquanto as 4 funcoes existem mas nao fazem nada. main.c ja chama
- * todas elas - assim que voce escrever o conteudo, o jogo passa a ter
- * obstaculos sem mexer em nenhum outro arquivo.
+ * Por enquanto as 4 funções existem mas não fazem nada. main.c já chama
+ * todas elas — assim que você escrever o conteúdo, o jogo passa a ter
+ * obstáculos sem mexer em nenhum outro arquivo.
  *
- * Sugestao de implementacao:
+ * Sugestão de implementação:
  *
  * void obstaculos_gerar(EstadoJogo *ej, unsigned int seed):
  *
- *   // Stream de rand proprio pra nao conflitar com profecia.c (que ja
- *   // consumiu a seed la). Multiplica e soma um valor magico pra tirar
- *   // uma sequencia diferente, mas ainda deterministica pra mesma seed.
+ *   // Stream de rand próprio pra não conflitar com profecia.c (que já
+ *   // consumiu a seed lá). Multiplica e soma um valor mágico pra tirar
+ *   // uma sequência diferente, mas ainda determinística pra mesma seed.
  *   srand(seed * 2654435761u + 12345u);
  *
  *   ej->qtd_obstaculos = 0;
- *   int qtd_alvo = 16 + rand() % 17;   // entre 16 e 32 obstaculos
+ *   int qtd_alvo = 16 + rand() % 17;   // entre 16 e 32 obstáculos
  *
  *   for (int i = 0; i < qtd_alvo && ej->qtd_obstaculos < MAX_OBSTACULOS; i++) {
- *       // Sortei tipo, raio compativel, posicao em [-2500, 2500]^2.
+ *       // Sorteia tipo, raio compatível, posição em [-2500, 2500]^2.
  *       // Tente algumas vezes pra evitar:
- *       //   - sobreposicao com outro obstaculo ja colocado
+ *       //   - sobreposição com outro obstáculo já colocado
  *       //   - spawn dentro da "zona segura" do jogador (~180 px da origem)
- *       // Se nao achou em 8 tentativas, pula esse obstaculo.
+ *       // Se não achou em 8 tentativas, pula esse obstáculo.
  *   }
  *
  * void obstaculos_desenhar(const EstadoJogo *ej):
  *
- *   // PRECISA ser chamada DENTRO de BeginMode2D - usa coord de mundo.
- *   // Para cada obstaculo no array:
- *   //   - ARVORE: tronco marrom (DrawRectangle) + copa verde (DrawCircleV) +
- *   //             highlight verde-claro deslocado pra dar volume
- *   //   - PEDRA:  circulo cinza-escuro + reflexo cinza-claro deslocado +
+ *   // PRECISA ser chamada DENTRO de BeginMode2D — usa coord de mundo.
+ *   // Para cada obstáculo no array:
+ *   //   - ÁRVORE: tronco marrom (DrawRectangle) + copa verde (DrawCircleV) +
+ *   //            highlight verde-claro deslocado pra dar volume
+ *   //   - PEDRA:  círculo cinza-escuro + reflexo cinza-claro deslocado +
  *   //             contorno escuro com DrawCircleLines
  *
  * void obstaculos_resolver_jogador(EstadoJogo *ej):
  *
- *   // Para cada obstaculo, se houver overlap com o circulo do jogador:
+ *   // Para cada obstáculo, se houver overlap com o círculo do jogador:
  *   //   distancia = hypot(dx, dy);
  *   //   overlap = (raio_jogador + raio_obstaculo) - distancia;
  *   //   ej->jogador.posicao += unit(dx, dy) * overlap;
@@ -47,26 +47,26 @@
  *
  * void obstaculos_resolver_inimigos(EstadoJogo *ej):
  *
- *   // Mesmo padrao, mas iterando sobre a lista encadeada de inimigos.
+ *   // Mesmo padrão, mas iterando sobre a lista encadeada de inimigos.
  *
- * "(void)ej;" silencia o warning de "parametro nao usado". Remova quando
- * for implementar de verdade. Mesmo no parametro 'seed' do gerar.
+ * "(void)ej;" silencia o warning de "parâmetro não usado". Remova quando
+ * for implementar de verdade. Mesmo no parâmetro 'seed' do gerar.
  * ========================================================================== */
 
 #include "obstaculos.h"
 
 void obstaculos_gerar(EstadoJogo *ej, unsigned int seed) {
-    (void)ej; (void)seed;   /* TODO: Luisa - gerar layout deterministico */
+    (void)ej; (void)seed;   /* TODO: Luísa — gerar layout determinístico */
 }
 
 void obstaculos_desenhar(const EstadoJogo *ej) {
-    (void)ej;   /* TODO: Luisa - desenhar arvores e pedras (dentro de BeginMode2D) */
+    (void)ej;   /* TODO: Luísa — desenhar árvores e pedras (dentro de BeginMode2D) */
 }
 
 void obstaculos_resolver_jogador(EstadoJogo *ej) {
-    (void)ej;   /* TODO: Luisa - empurrar jogador pra fora de obstaculos */
+    (void)ej;   /* TODO: Luísa — empurrar jogador pra fora de obstáculos */
 }
 
 void obstaculos_resolver_inimigos(EstadoJogo *ej) {
-    (void)ej;   /* TODO: Luisa - empurrar cada inimigo pra fora de obstaculos */
+    (void)ej;   /* TODO: Luísa — empurrar cada inimigo pra fora de obstáculos */
 }

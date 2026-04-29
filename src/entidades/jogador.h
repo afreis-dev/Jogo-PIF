@@ -1,38 +1,40 @@
 /* ============================================================================
- * jogador.h - INTERFACE DO MODULO JOGADOR
+ * jogador.h - INTERFACE DO MÓDULO JOGADOR
  * ============================================================================
  *
- * O que e um header (.h)?
- *   E o "cartao de visita" de um modulo. Ele DECLARA as funcoes publicas
- *   (protótipos), mas NAO implementa. A implementacao fica no .c.
+ * RESPONSABILIDADE: Dev 1 (Arthur)
  *
- * Por que separar?
- *   - Outros arquivos so precisam incluir o .h pra usar as funcoes.
- *   - O compilador checa o tipo dos argumentos na hora da chamada.
- *   - Recompila mais rapido (mudar .c nao obriga recompilar quem usa).
+ * Cuida de tudo relacionado ao personagem do jogador:
+ *   - Movimento (WASD ou setas, com normalização da diagonal).
+ *   - HP atual e máximo.
+ *   - Dano recebido (chamado pela colisão quando inimigo encosta).
+ *   - Render do círculo do jogador.
+ *
+ * O jogador vive em coordenadas de mundo (mundo infinito). A câmera, definida
+ * em main.c, cuida de mantê-lo sempre centralizado na tela.
+ *
+ * (Convenções gerais de C deste projeto — header×implementação, include-guard,
+ *  EstadoJogo *ej — estão documentadas no README.md, seção "Convenções de
+ *  código C".)
  * ========================================================================== */
 
 #ifndef JOGADOR_H
 #define JOGADOR_H
 
-/* #include-guard acima (#ifndef/#define/#endif):
- * Garante que o header so seja lido UMA vez, mesmo se for incluido por
- * varios arquivos. Sem isso, daria erro de "redefinicao" de tipos. */
-
 #include "tipos.h"
 
-/* --- Protótipos publicos --- */
+/* --- Protótipos públicos --- */
 
-/* Prepara o jogador com valores padrao (posicao, HP, velocidade). */
+/* Prepara o jogador com valores padrão (posição, HP, velocidade). */
 void jogador_inicializar(Jogador *j);
 
-/* Le WASD e move o jogador. Recebe delta_tempo pra movimento suave. */
+/* Lê WASD (ou setas) e move o jogador. delta_tempo garante movimento suave. */
 void jogador_atualizar(Jogador *j, float delta_tempo);
 
-/* Desenha o jogador na tela. "const" = funcao nao modifica o jogador. */
+/* Desenha o jogador na tela. "const" = função não modifica o jogador. */
 void jogador_desenhar(const Jogador *j);
 
-/* Aplica dano ao jogador. Main chama isso quando colisao detecta hit. */
+/* Aplica dano ao jogador. Main chama isso quando colisão detecta hit. */
 void jogador_sofrer_dano(Jogador *j, int quantidade);
 
 #endif /* JOGADOR_H */
