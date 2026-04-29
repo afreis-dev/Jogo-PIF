@@ -60,27 +60,44 @@ make clean
 
 ## Estrutura de pastas
 
+O codigo eh organizado em modulos por responsabilidade. Cada subpasta de `src/`
+agrupa arquivos com proposito relacionado, deixando claro pra cada dev onde
+encostar.
+
 ```text
 Jogo-PIF/
 |-- src/
-|   |-- tipos.h         <- contrato entre devs
-|   |-- main.c          <- game loop
-|   |-- jogador.c/.h    <- movimento, HP e bordas
-|   |-- profecia.c/.h   <- gerador procedural de profecias
-|   |-- colisao.c/.h    <- deteccao de colisao generica
-|   |-- magias.c/.h     <- projeteis e magias (Luisa)
-|   |-- inimigos.c/.h   <- spawn e IA de inimigos (Luisa)
-|   |-- onda.c/.h       <- gerador de ondas (Luisa)
-|   |-- cartas.c/.h     <- sistema de upgrade (Sofia)
-|   |-- dados.c/.h      <- sistema de dados (Sofia)
-|   |-- salvamento.c/.h <- save/load em arquivo (Sofia)
-|   `-- hud.c/.h        <- interface durante combate (Sofia)
-|-- assets/             <- sprites, sons e fontes
-|-- build/              <- arquivos .o gerados pelo make
-|-- saves/              <- progresso gerado em runtime
+|   |-- core/                    <- motor: loop, contrato (tipos.h), colisao
+|   |   |-- main.c               <- game loop e maquina de estados
+|   |   |-- tipos.h              <- contrato entre devs (todas as structs)
+|   |   `-- colisao.c/.h         <- deteccao de colisao generica
+|   |
+|   |-- entidades/               <- coisas que vivem no mundo
+|   |   |-- jogador.c/.h         <- movimento, HP e direcao
+|   |   |-- inimigos.c/.h        <- spawn, IA e lista encadeada (Luisa)
+|   |   |-- magias.c/.h          <- projeteis e magias (Luisa)
+|   |   `-- obstaculos.c/.h      <- arvores e pedras (Luisa)
+|   |
+|   |-- sistemas/                <- regras e logica do jogo
+|   |   |-- profecia.c/.h        <- gerador procedural de profecias
+|   |   |-- onda.c/.h            <- wave generator (Luisa)
+|   |   |-- cartas.c/.h          <- sistema de upgrade (Sofia)
+|   |   |-- dados.c/.h           <- sistema de dados (Sofia)
+|   |   `-- salvamento.c/.h      <- save/load em arquivo (Sofia)
+|   |
+|   `-- interface/               <- UI e HUD
+|       `-- hud.c/.h             <- HUD durante combate (Sofia)
+|
+|-- assets/                      <- sprites, sons e fontes
+|-- build/                       <- arquivos .o gerados pelo make
+|-- saves/                       <- progresso gerado em runtime
 |-- Makefile
 `-- README.md
 ```
+
+> Os `#include` continuam sendo por nome simples (ex.: `#include "tipos.h"`)
+> porque o Makefile adiciona cada subpasta de `src/` ao `-I` do compilador.
+> Voce nao precisa escrever `#include "core/tipos.h"`.
 
 ## Controles
 

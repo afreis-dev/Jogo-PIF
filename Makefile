@@ -2,23 +2,26 @@
 # Makefile - AUGUR
 # ============================================================================
 #
-# Esta versao ja aponta para a organizacao mais enxuta do projeto e, durante a
-# transicao, ainda aceita a estrutura antiga para nao quebrar o fluxo do grupo.
+# Estrutura modular:
+#   src/core/         loop principal, contrato (tipos.h), colisao
+#   src/entidades/    jogador, inimigos, magias (e futuros: obstaculos)
+#   src/sistemas/     profecia, onda, cartas, dados, salvamento
+#   src/interface/    hud
+#
+# Cada modulo eh uma pasta. O Makefile descobre automaticamente todos os
+# .c e adiciona cada subpasta no -I do compilador, entao os #include
+# continuam podendo ser por nome simples (ex.: #include "tipos.h").
 # ============================================================================
 
 CC := gcc
 PKG_CONFIG := pkg-config
 
-FONTES_PLANAS := $(wildcard src/*.c)
-FONTES_ANTIGAS := $(wildcard src/core/*.c) $(wildcard src/regras/*.c) $(wildcard src/stubs/*.c)
+# Descobre todos os .c em src/ e em qualquer subpasta direta de src/.
+FONTES := $(wildcard src/*.c) $(wildcard src/*/*.c)
 
-ifeq ($(strip $(FONTES_PLANAS)),)
-    FONTES := $(FONTES_ANTIGAS)
-    INCLUDES := -Iinclude
-else
-    FONTES := $(FONTES_PLANAS)
-    INCLUDES := -Isrc
-endif
+# -I para cada modulo, pra que #include "header.h" funcione sem precisar
+# escrever o caminho completo.
+INCLUDES := -Isrc -Isrc/core -Isrc/entidades -Isrc/sistemas -Isrc/interface
 
 OBJETOS := $(patsubst src/%.c,build/%.o,$(FONTES))
 
