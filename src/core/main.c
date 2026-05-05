@@ -60,6 +60,7 @@ static void desenhar_grid_mundo(const Camera2D *camera);
 static void atualizar_menu(EstadoJogo *ej);
 static void atualizar_revelacao_profecia(EstadoJogo *ej);
 static void atualizar_combate(EstadoJogo *ej);
+static void atualizar_pausa(EstadoJogo *ej);
 static void atualizar_cartas_upgrade(EstadoJogo *ej);
 static void atualizar_game_over(EstadoJogo *ej);
 static void atualizar_vitoria(EstadoJogo *ej);
@@ -72,6 +73,11 @@ int main(void) {
     /* 1. Inicialização do Raylib (abre a janela, prepara contexto gráfico) */
     InitWindow(LARGURA_TELA, ALTURA_TELA, "AUGUR - Projeto PIF CESAR");
     SetTargetFPS(FPS_ALVO);
+
+    /* Por padrão o Raylib fecha a janela ao apertar ESC. Como queremos usar
+     * ESC pra pausar/retomar o jogo, removemos esse atalho. O usuário ainda
+     * pode fechar pelo X da janela (WindowShouldClose continua respondendo). */
+    SetExitKey(KEY_NULL);
 
     /* Inicializa o gerador aleatório do sistema com o horário atual.
      * Sem isso, toda vez que o jogo abre, as seeds seriam iguais. */
@@ -127,7 +133,8 @@ static void jogo_inicializar(EstadoJogo *ej) {
     ej->camera.rotation = 0.0f;
     ej->camera.zoom     = 1.0f;
 
-    ej->modo_debug = false;
+    ej->modo_debug   = false;
+    ej->tiros_ativos = true;        /* Q desliga, Q liga */
 }
 
 
@@ -155,6 +162,7 @@ static void jogo_atualizar(EstadoJogo *ej) {
         case ESTADO_MENU:               atualizar_menu(ej);               break;
         case ESTADO_REVELACAO_PROFECIA: atualizar_revelacao_profecia(ej); break;
         case ESTADO_COMBATE:            atualizar_combate(ej);            break;
+        case ESTADO_PAUSA:              atualizar_pausa(ej);              break;
         case ESTADO_CARTAS_UPGRADE:     atualizar_cartas_upgrade(ej);     break;
         case ESTADO_GAME_OVER:          atualizar_game_over(ej);          break;
         case ESTADO_VITORIA:            atualizar_vitoria(ej);            break;
@@ -209,6 +217,19 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
  * A ordem dos checks favorece a derrota (não dá pra "vencer" no mesmo
  * frame em que o jogador morre). */
 static void atualizar_combate(EstadoJogo *ej) {
+    /* ESC pausa o combate. O early return evita que o resto do frame rode
+     * (jogador, magias, inimigos, cronograma) — o mundo congela na hora. */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->proximo_estado = ESTADO_PAUSA;
+        return;
+    }
+
+    /* Q liga/desliga o auto-fire. Tem efeito imediato no próximo tick de
+     * magias_atualizar, que checa ej->tiros_ativos antes de disparar. */
+    if (IsKeyPressed(KEY_Q)) {
+        ej->tiros_ativos = !ej->tiros_ativos;
+    }
+
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
     /* A câmera segue o jogador em tempo real. Como o offset é o centro da
@@ -235,6 +256,22 @@ static void atualizar_combate(EstadoJogo *ej) {
     } else if (cronograma_deve_abrir_cartas(&ej->cronograma)) {
         cartas_gerar_escolhas(ej);
         ej->proximo_estado = ESTADO_CARTAS_UPGRADE;
+    }
+}
+
+/* --- Estado: PAUSA --------------------------------------------------------
+ * Mundo completamente congelado. ESC retoma o combate, ENTER volta pro menu
+ * (descarta a run). Cronograma, inimigos e magias nem rodam aqui — o switch
+ * em jogo_atualizar simplesmente não chama as funções deles. */
+static void atualizar_pausa(EstadoJogo *ej) {
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->proximo_estado = ESTADO_COMBATE;
+    } else if (IsKeyPressed(KEY_ENTER)) {
+        /* Limpa as listas antes de voltar ao menu pra não vazar memória entre
+         * runs. A engine usa malloc/free, então isso é obrigatório. */
+        magias_liberar_tudo(ej);
+        inimigos_liberar_tudo(ej);
+        ej->proximo_estado = ESTADO_MENU;
     }
 }
 
@@ -299,19 +336,41 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
+        case ESTADO_PAUSA:
             /* Tudo dentro de BeginMode2D é desenhado em COORD DE MUNDO:
              * a câmera aplica o offset automaticamente. Jogador, magias,
-             * inimigos e obstáculos vivem no mundo. */
+             * inimigos e obstáculos vivem no mundo.
+             *
+             * O case PAUSA reaproveita o render do COMBATE: o mundo continua
+             * desenhado (estado da última frame antes da pausa), e em cima
+             * pintamos o overlay no fim deste switch. */
             BeginMode2D(ej->camera);
                 desenhar_grid_mundo(&ej->camera);
-                obstaculos_desenhar(ej);  /* stub Dev 3 — mapa por baixo */
-                magias_desenhar(ej);      /* stub */
-                inimigos_desenhar(ej);    /* stub */
+                obstaculos_desenhar(ej);
+                magias_desenhar(ej);
+                inimigos_desenhar(ej);
                 jogador_desenhar(&ej->jogador);
             EndMode2D();
             /* HUD é coord de TELA (fixa, não rola com a câmera). */
-            desenhar_hud(ej);    /* stub */
+            desenhar_hud(ej);
 
+            /* Indicador do toggle de tiros: canto inferior esquerdo. ASCII
+             * porque a fonte default do Raylib não renderiza acento. */
+            DrawText(ej->tiros_ativos ? "[Q] Tiros: ON" : "[Q] Tiros: OFF",
+                     10, ALTURA_TELA - 28, 18,
+                     ej->tiros_ativos ? LIME : (Color){ 200, 100, 100, 255 });
+
+            /* Overlay de pausa: tinta translúcida + texto centralizado. */
+            if (ej->estado_atual == ESTADO_PAUSA) {
+                DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA,
+                              (Color){ 0, 0, 0, 160 });
+                DrawText("PAUSA",
+                         LARGURA_TELA/2 - 90, ALTURA_TELA/2 - 80, 60, GOLD);
+                DrawText("ESC para retomar",
+                         LARGURA_TELA/2 - 110, ALTURA_TELA/2 + 10, 22, WHITE);
+                DrawText("ENTER para voltar ao menu",
+                         LARGURA_TELA/2 - 170, ALTURA_TELA/2 + 50, 20, GRAY);
+            }
             break;
 
         case ESTADO_CARTAS_UPGRADE:

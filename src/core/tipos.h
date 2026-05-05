@@ -53,6 +53,7 @@ typedef enum {
     ESTADO_MENU,                /* tela inicial */
     ESTADO_REVELACAO_PROFECIA,  /* mostra os 3 modificadores sorteados */
     ESTADO_COMBATE,             /* timeline rolando, inimigos spawnando */
+    ESTADO_PAUSA,               /* ESC durante o combate; mundo congelado */
     ESTADO_CARTAS_UPGRADE,      /* a cada minuto: jogador escolhe upgrade */
     ESTADO_GAME_OVER,           /* morreu, mostra score e seed */
     ESTADO_VITORIA,             /* matou o chefão final aos 15:00 */
@@ -411,6 +412,9 @@ typedef struct {
 
     /* --- Debug --- */
     bool      modo_debug;         /* F1 alterna; mostra FPS e info extra */
+
+    /* --- Toggles do jogador durante o combate --- */
+    bool      tiros_ativos;       /* Q alterna; quando false, auto-fire pausa */
 } EstadoJogo;
 
 #endif /* TIPOS_H */

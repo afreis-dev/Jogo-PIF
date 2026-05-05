@@ -133,6 +133,11 @@ static bool encontrar_alvo(const EstadoJogo *ej, Vector2 *out_dir) {
 
 
 void magias_tipos_processar_auto_fire(EstadoJogo *ej) {
+    /* Q toggle global: se o jogador desligou os tiros, simplesmente sai.
+     * Os timers ficam congelados (não decrementa nem reseta), pra retomar
+     * exatamente no mesmo cooldown quando ligar de novo. */
+    if (!ej->tiros_ativos) return;
+
     /* Timers persistentes entre frames: um por elemento. Inicializam em 0,
      * o que faz o primeiro tick disparar (sensação imediata ao começar). */
     static float timer_por_elemento[ELEMENTO_TOTAL] = {0};

@@ -197,11 +197,12 @@ A struct raiz `EstadoJogo` (definida em `tipos.h`) carrega TODO o estado da run:
 
 | Tecla | Ação |
 |-------|------|
-| WASD | Mover jogador |
+| WASD ou setinhas | Mover jogador |
 | ENTER | Confirmar / Avançar |
 | ESPAÇO | Iniciar combate / Confirmar carta |
+| Q | Liga/desliga tiros automáticos |
+| ESC | Pausar (durante combate) / Retomar |
 | F1 | Alternar modo debug |
-| ESC | Sair |
 
 ## Conceitos obrigatórios de PIF implementados
 
