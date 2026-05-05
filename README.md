@@ -4,7 +4,7 @@ Bullet Hell Roguelite · Projeto PIF 2026.1 · CESAR School
 
 ## Sobre o jogo
 
-Em AUGUR, cada run começa com uma **Profecia** — três regras geradas proceduralmente que definem como aquele mundo funciona. Magias disparam automaticamente enquanto você esquiva de projéteis inimigos. Entre ondas, escolha cartas de upgrade e decida quando gastar seus dados limitados pra tentar melhorar (ou piorar) um upgrade.
+Em AUGUR, cada run começa com uma **Profecia** — três regras geradas proceduralmente que definem como aquele mundo funciona. Magias disparam automaticamente enquanto você esquiva de projéteis inimigos. A run é uma timeline de **15 minutos** estilo Vampire Survivors: a cada minuto cheio você escolhe cartas de upgrade, e aos 15:00 surge o chefão final. Derrotá-lo encerra a run com vitória.
 
 Cada run tem uma **seed** visível na tela. Como a profecia é gerada de forma determinística a partir da seed, você pode compartilhar runs marcantes com amigos: mesma seed = mesma profecia = mesmo puzzle inicial. É o ponto de partida pra replays, debug e desafios entre jogadores.
 
@@ -12,9 +12,9 @@ Cada run tem uma **seed** visível na tela. Como a profecia é gerada de forma d
 
 | Dev | Responsabilidade | Módulos |
 |-----|------------------|---------|
-| Arthur (Dev 1) | Engine & Core | `main.c`, `tipos.h`, `jogador`, `profecia`, `colisao` |
+| Arthur (Dev 1) | Engine & Core | `main.c`, `tipos.h`, `jogador`, `profecia`, `colisao`, engine de `inimigos`/`magias`/`cronograma`, `obstaculos` |
 | Sofia (Dev 2) | Sistemas de Jogo | `cartas`, `dados`, `salvamento`, `hud` |
-| Luísa (Dev 3) | Conteúdo | `magias`, `inimigos`, `onda`, `obstaculos` |
+| Luísa (Dev 3) | Conteúdo | `inimigos_tipos`, `magias_tipos`, `cronograma_eventos` |
 
 ## Requisitos
 
@@ -65,35 +65,95 @@ O código é organizado em módulos por responsabilidade. Cada subpasta de `src/
 ```text
 Jogo-PIF/
 |-- src/
-|   |-- core/                    <- motor: loop, contrato (tipos.h), colisão
-|   |   |-- main.c               <- game loop e máquina de estados
-|   |   |-- tipos.h              <- contrato entre devs (todas as structs)
-|   |   `-- colisao.c/.h         <- detecção de colisão genérica
+|   |-- core/                          <- motor: loop, contrato (tipos.h), colisão
+|   |   |-- main.c                     <- game loop e máquina de estados
+|   |   |-- tipos.h                    <- contrato entre devs (todas as structs)
+|   |   `-- colisao.c/.h               <- detecção de colisão genérica
 |   |
-|   |-- entidades/               <- coisas que vivem no mundo
-|   |   |-- jogador.c/.h         <- movimento, HP e direção
-|   |   |-- inimigos.c/.h        <- spawn, IA e lista encadeada (Luísa)
-|   |   |-- magias.c/.h          <- projéteis e magias (Luísa)
-|   |   `-- obstaculos.c/.h      <- árvores e pedras (Luísa)
+|   |-- entidades/                     <- coisas que vivem no mundo
+|   |   |-- jogador.c/.h               <- movimento, HP e direção
+|   |   |-- inimigos.c/.h              <- ENGINE de inimigos (Arthur)
+|   |   |-- inimigos_tipos.c/.h        <- TABELA + IA por tipo (Luísa)
+|   |   |-- magias.c/.h                <- ENGINE de projéteis (Arthur)
+|   |   |-- magias_tipos.c/.h          <- TABELA por elemento + auto-fire (Luísa)
+|   |   `-- obstaculos.c/.h            <- árvores e pedras (Arthur)
 |   |
-|   |-- sistemas/                <- regras e lógica do jogo
-|   |   |-- profecia.c/.h        <- gerador procedural de profecias
-|   |   |-- onda.c/.h            <- wave generator (Luísa)
-|   |   |-- cartas.c/.h          <- sistema de upgrade (Sofia)
-|   |   |-- dados.c/.h           <- sistema de dados (Sofia)
-|   |   `-- salvamento.c/.h      <- save/load em arquivo (Sofia)
+|   |-- sistemas/                      <- regras e lógica do jogo
+|   |   |-- profecia.c/.h              <- gerador procedural de profecias
+|   |   |-- cronograma.c/.h            <- ENGINE da timeline 15min (Arthur)
+|   |   |-- cronograma_eventos.c/.h    <- TABELA de eventos da timeline (Luísa)
+|   |   |-- cartas.c/.h                <- sistema de upgrade (Sofia)
+|   |   |-- dados.c/.h                 <- sistema de dados (Sofia)
+|   |   `-- salvamento.c/.h            <- save/load em arquivo (Sofia)
 |   |
-|   `-- interface/               <- UI e HUD
-|       `-- hud.c/.h             <- HUD durante combate (Sofia)
+|   `-- interface/                     <- UI e HUD
+|       `-- hud.c/.h                   <- HUD durante combate (Sofia)
 |
-|-- assets/                      <- sprites, sons e fontes
-|-- build/                       <- arquivos .o gerados pelo make
-|-- saves/                       <- progresso gerado em runtime
+|-- assets/                            <- sprites, sons e fontes
+|-- build/                             <- arquivos .o gerados pelo make
+|-- saves/                             <- progresso gerado em runtime
+|-- docs/                              <- issues e guias internos pro grupo
 |-- Makefile
 `-- README.md
 ```
 
+> **Engine vs. conteúdo.** A regra é: tudo que termina em `_tipos.c` ou `_eventos.c` é **conteúdo da Luísa** — tabelas de stats, IA específica, timeline de spawns. A engine (Arthur) consome essas tabelas. Pra balancear ou criar coisa nova, a Luísa só edita os arquivos de conteúdo.
+
 > Os `#include` continuam sendo por nome simples (ex.: `#include "tipos.h"`) porque o Makefile adiciona cada subpasta de `src/` ao `-I` do compilador. Você não precisa escrever `#include "core/tipos.h"`.
+
+## Como adicionar conteúdo (guia da Luísa)
+
+Toda mudança de balanceamento ou conteúdo novo acontece em **três arquivos**:
+
+| O que você quer | Onde editar |
+|-----------------|-------------|
+| Stats e IA de inimigos | `src/entidades/inimigos_tipos.c` |
+| Stats e auto-fire de magias | `src/entidades/magias_tipos.c` |
+| Quando spawnar o quê | `src/sistemas/cronograma_eventos.c` |
+
+A engine (`inimigos.c`, `magias.c`, `cronograma.c`) lê dessas tabelas. Você não precisa mexer em alocação, lista encadeada, push-out ou render — tudo isso já está pronto.
+
+### Adicionar um inimigo novo (ex.: elite à distância)
+
+1. Em `src/core/tipos.h`, no enum `TipoInimigo`, adicione um valor novo:
+   ```c
+   typedef enum {
+       INIMIGO_CORPO_A_CORPO,
+       INIMIGO_A_DISTANCIA,
+       INIMIGO_ELITE,
+       INIMIGO_ELITE_DISTANCIA,   /* novo */
+       INIMIGO_CHEFE
+   } TipoInimigo;
+   ```
+2. Em `src/entidades/inimigos_tipos.c`, adicione uma linha em `PARAMETROS_INIMIGO[]` na **mesma ordem do enum**:
+   ```c
+   {
+       .vida_base = 70, .dano = 16, .velocidade_movimento = 80.0f,
+       .raio = 14.0f, .raio_visual = 14.0f,
+       .cor = (Color){80, 200, 220, 255},
+       .recompensa_biomassa = 30,
+       .comportamento = IA_KITER,    /* reaproveita a IA do ranged base */
+   },
+   ```
+3. Pronto. Pra fazer ele aparecer numa fase, adicione uma linha em `cronograma_eventos.c`.
+
+### Mexer na timeline da run
+
+Cada linha em `EVENTOS_CRONOGRAMA[]` é uma fase declarativa: "do tempo X ao tempo Y, spawnar tipo T a cada Z segundos". Tempos em segundos (`5 * 60` = minuto 5). O chefão é spawnado pela engine automaticamente aos 15:00 — não precisa cadastrar.
+
+```c
+{ 4.0f * 60.0f, 15.0f * 60.0f, INIMIGO_ELITE_DISTANCIA, 12.0f, 0.0f, false },
+```
+
+### Mexer numa magia existente
+
+Em `magias_tipos.c`, ache a linha do elemento (ordem do enum) e ajuste dano, cooldown ou cor. Pra mudar o jeito que o jogador atira (ex.: spread em leque), edite a função `magias_tipos_processar_auto_fire`.
+
+### Adicionar uma IA inédita
+
+1. Em `tipos.h`, novo valor no enum `ComportamentoIA`.
+2. Em `inimigos_tipos.c`, crie uma função `static void ia_minha_ia(Inimigo *i, EstadoJogo *ej)` que escreve em `i->velocidade`.
+3. Adicione um `case` em `inimigos_tipos_executar_ia`.
 
 ## Convenções de código C
 
@@ -139,7 +199,7 @@ A struct raiz `EstadoJogo` (definida em `tipos.h`) carrega TODO o estado da run:
 |-------|------|
 | WASD | Mover jogador |
 | ENTER | Confirmar / Avançar |
-| ESPAÇO | Iniciar combate / Próxima onda |
+| ESPAÇO | Iniciar combate / Confirmar carta |
 | F1 | Alternar modo debug |
 | ESC | Sair |
 

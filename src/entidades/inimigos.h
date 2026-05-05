@@ -1,35 +1,41 @@
 /* ============================================================================
- * inimigos.h - INTERFACE DO MÓDULO DE INIMIGOS
+ * inimigos.h - INTERFACE DA ENGINE DE INIMIGOS
  * ============================================================================
  *
- * RESPONSABILIDADE: Dev 3 (Luísa)
+ * RESPONSABILIDADE: Arthur (Dev 1) — engine.
  *
- * Cuida de tudo sobre inimigos:
- *   - Mover em direção ao jogador (IA simples: "andar pra onde o jogador tá").
- *   - Remover inimigos marcados como "vivo = false" pela colisão.
- *   - Liberar (free) os nós ao fim do jogo.
+ * Esta camada lida com lista encadeada, push-out físico, render genérico
+ * e dispatch de IA. Os DADOS dos tipos (vida, dano, IA específica) vivem
+ * em src/entidades/inimigos_tipos.c, que a Luísa (Dev 3) edita.
  *
- * COMO CRIAR UM INIMIGO:
- *   1. malloc(sizeof(InimigoNo))
- *   2. Preencher: posicao (borda da tela), vida, velocidade, tipo.
- *   3. Inserir na cabeça: novo->proximo = ej->inimigos_cabeca;
- *                          ej->inimigos_cabeca = novo;
+ * QUEM CHAMA O QUÊ:
+ *   - main.c chama atualizar/desenhar/liberar uma vez por frame.
+ *   - cronograma.c chama inimigos_spawnar_em quando a timeline pede.
+ *   - colisao.c marca .vivo = false e .vida -= dano (não remove da lista).
  *
- * O módulo colisao.c marca "vivo = false". Este módulo remove da lista.
- * ========================================================================== */
+ * COMO A LUÍSA ADICIONA UM TIPO NOVO: vai em inimigos_tipos.c. NÃO precisa
+ * mexer aqui.
+ * ============================================================================ */
 
 #ifndef INIMIGOS_H
 #define INIMIGOS_H
 
 #include "tipos.h"
 
-/* Move cada inimigo em direção ao jogador, remove os mortos. */
+/* Dispatch IA + movimento + push-out + remoção dos mortos. Uma chamada por
+ * frame durante o combate. */
 void inimigos_atualizar(EstadoJogo *ej);
 
-/* Desenha cada inimigo na tela. */
+/* Render circular usando cor da tabela de parâmetros. */
 void inimigos_desenhar(const EstadoJogo *ej);
 
-/* Libera todos os nós da lista. */
+/* Libera todos os nós da lista. Chamada pelo main na finalização e quando
+ * uma run termina (game over / vitória). */
 void inimigos_liberar_tudo(EstadoJogo *ej);
+
+/* Cria um inimigo na posição dada com os stats do tipo (lê PARAMETROS_INIMIGO).
+ * Usada pelo cronograma e por testes. Ignora silenciosamente se a lista
+ * estourar MAX_INIMIGOS. */
+void inimigos_spawnar_em(EstadoJogo *ej, Vector2 posicao, TipoInimigo tipo);
 
 #endif /* INIMIGOS_H */

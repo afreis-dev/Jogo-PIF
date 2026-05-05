@@ -28,13 +28,13 @@
 #include "profecia.h"
 #include "colisao.h"
 
-/* Módulos que são STUBS por enquanto — Dev 2 e Dev 3 vão preencher.
- * O código compila e roda mesmo com stubs vazios porque os headers
- * declaram as funções e os .c implementam versões que não fazem nada. */
+/* Módulos restantes. Magias/inimigos/cronograma já têm engine pronta — Luísa
+ * preenche apenas as tabelas de tipos/eventos (inimigos_tipos.c, magias_tipos.c,
+ * cronograma_eventos.c). Dev 2 (Sofia) ainda popula cartas/dados/salvamento/hud. */
 #include "magias.h"
 #include "inimigos.h"
 #include "obstaculos.h"
-#include "onda.h"
+#include "cronograma.h"
 #include "cartas.h"
 #include "dados.h"
 #include "salvamento.h"
@@ -62,6 +62,7 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej);
 static void atualizar_combate(EstadoJogo *ej);
 static void atualizar_cartas_upgrade(EstadoJogo *ej);
 static void atualizar_game_over(EstadoJogo *ej);
+static void atualizar_vitoria(EstadoJogo *ej);
 
 
 /* ============================================================================
@@ -156,6 +157,7 @@ static void jogo_atualizar(EstadoJogo *ej) {
         case ESTADO_COMBATE:            atualizar_combate(ej);            break;
         case ESTADO_CARTAS_UPGRADE:     atualizar_cartas_upgrade(ej);     break;
         case ESTADO_GAME_OVER:          atualizar_game_over(ej);          break;
+        case ESTADO_VITORIA:            atualizar_vitoria(ej);            break;
         default: break;
     }
 
@@ -192,16 +194,20 @@ static void atualizar_menu(EstadoJogo *ej) {
  * começar o combate. */
 static void atualizar_revelacao_profecia(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_SPACE)) {
-        /* Prepara onda 1 (stub do Dev 3) */
-        onda_inicializar(&ej->onda_atual, 1);
+        /* Inicia a timeline da run (15 minutos até o chefão). */
+        cronograma_inicializar(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
 
 /* --- Estado: COMBATE ------------------------------------------------------
- * O coração do jogo. Atualiza jogador, magias, inimigos, onda, colisões.
- * Se o jogador morrer, vai pra GAME_OVER. Se a onda acabar, vai pra
- * CARTAS_UPGRADE. */
+ * O coração do jogo. Atualiza jogador, magias, inimigos, cronograma e
+ * colisões. Transições possíveis:
+ *   - vida <= 0          → GAME_OVER
+ *   - cronograma.vitoria → VITORIA (matou o chefão)
+ *   - cartas pendentes   → CARTAS_UPGRADE (a cada minuto cheio)
+ * A ordem dos checks favorece a derrota (não dá pra "vencer" no mesmo
+ * frame em que o jogador morre). */
 static void atualizar_combate(EstadoJogo *ej) {
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
@@ -209,36 +215,36 @@ static void atualizar_combate(EstadoJogo *ej) {
      * tela, isso mantém o player sempre centralizado e o mundo rola em volta. */
     ej->camera.target = ej->jogador.posicao;
 
-    magias_atualizar(ej);               /* stub Dev 3 */
-    inimigos_atualizar(ej);             /* stub Dev 3 */
-    onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
+    magias_atualizar(ej);                              /* engine Arthur */
+    inimigos_atualizar(ej);                            /* engine Arthur */
+    cronograma_atualizar(&ej->cronograma, ej);         /* engine Arthur */
 
-    colisao_verificar_tudo(ej);         /* Dev 1 — implementado */
+    colisao_verificar_tudo(ej);                        /* engine Arthur */
 
     /* Obstáculos do mapa bloqueiam tanto o jogador quanto os inimigos.
      * Resolvidos APÓS colisao_verificar_tudo pra ter a palavra final — assim
      * inimigo não consegue empurrar o jogador pra dentro de uma árvore.
-     * Stubs do Dev 3 por enquanto. */
-    obstaculos_resolver_jogador(ej);    /* stub Dev 3 */
-    obstaculos_resolver_inimigos(ej);   /* stub Dev 3 */
+     * Stubs por enquanto (porte do sandbox em outra sessão). */
+    obstaculos_resolver_jogador(ej);
+    obstaculos_resolver_inimigos(ej);
 
     if (ej->jogador.vida <= 0) {
         ej->proximo_estado = ESTADO_GAME_OVER;
-    } else if (ej->onda_atual.completa) {
-        /* Onda acabou — Dev 2 sorteia cartas, vai pra tela de escolha */
+    } else if (ej->cronograma.vitoria) {
+        ej->proximo_estado = ESTADO_VITORIA;
+    } else if (cronograma_deve_abrir_cartas(&ej->cronograma)) {
         cartas_gerar_escolhas(ej);
         ej->proximo_estado = ESTADO_CARTAS_UPGRADE;
     }
 }
 
 /* --- Estado: CARTAS_UPGRADE ------------------------------------------------
- * Tela de escolha entre ondas. Dev 2 processa input de 1/2/3 pra escolher
- * carta. Depois vai de volta pro combate (próxima onda). */
+ * Tela de escolha disparada a cada minuto cheio do cronograma. O tempo da
+ * timeline NÃO avança enquanto este estado está ativo. Dev 2 processa input
+ * de 1/2/3 pra escolher carta. ESPAÇO continua pulando como placeholder. */
 static void atualizar_cartas_upgrade(EstadoJogo *ej) {
-    /* Placeholder: pula pra próxima onda apertando ESPAÇO.
-     * Dev 2 substitui por input real das cartas. */
     if (IsKeyPressed(KEY_SPACE)) {
-        onda_inicializar(&ej->onda_atual, ej->onda_atual.numero + 1);
+        cronograma_consumir_carta_pendente(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
@@ -248,6 +254,15 @@ static void atualizar_cartas_upgrade(EstadoJogo *ej) {
 static void atualizar_game_over(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
         /* Volta pro menu. Poderia também salvar o score aqui (Dev 2). */
+        ej->proximo_estado = ESTADO_MENU;
+    }
+}
+
+/* --- Estado: VITORIA ------------------------------------------------------
+ * Tela curta após derrotar o chefão. ENTER volta pro menu. Tela detalhada
+ * (com biomassa total, recordes etc.) é polish pra outra sessão. */
+static void atualizar_vitoria(EstadoJogo *ej) {
+    if (IsKeyPressed(KEY_ENTER)) {
         ej->proximo_estado = ESTADO_MENU;
     }
 }
@@ -313,6 +328,22 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             snprintf(buffer, sizeof(buffer), "Seed da run: %u",
                      ej->profecia.seed);
             DrawText(buffer, LARGURA_TELA/2 - 100, 320, 22, WHITE);
+            DrawText("Pressione ENTER para voltar ao menu",
+                     LARGURA_TELA/2 - 230, 440, 20, GRAY);
+            break;
+        }
+
+        case ESTADO_VITORIA: {
+            DrawText("VITORIA", LARGURA_TELA/2 - 130, 180, 70, GOLD);
+            DrawText("Voce derrotou o chefao final!",
+                     LARGURA_TELA/2 - 200, 290, 22, WHITE);
+            char buffer[128];
+            int min = (int)(ej->cronograma.tempo_decorrido / 60.0f);
+            int seg = (int)ej->cronograma.tempo_decorrido % 60;
+            snprintf(buffer, sizeof(buffer),
+                     "Tempo: %02d:%02d   Seed: %u",
+                     min, seg, ej->profecia.seed);
+            DrawText(buffer, LARGURA_TELA/2 - 200, 340, 20, LIGHTGRAY);
             DrawText("Pressione ENTER para voltar ao menu",
                      LARGURA_TELA/2 - 230, 440, 20, GRAY);
             break;
