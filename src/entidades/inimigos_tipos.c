@@ -8,7 +8,10 @@
  * ============================================================================ */
 
 #include "inimigos_tipos.h"
+#include "inimigos.h"
 #include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 
 /* ----------------------------------------------------------------------------
@@ -104,55 +107,177 @@ static Vector2 direcao_ate_jogador(const Inimigo *i, const EstadoJogo *ej) {
 }
 
 
-/* Chase: anda direto na direção do jogador. */
-static void ia_chase(Inimigo *i, EstadoJogo *ej) {
-    Vector2 dir = direcao_ate_jogador(i, ej);
-    i->velocidade.x = dir.x * i->velocidade_movimento;
-    i->velocidade.y = dir.y * i->velocidade_movimento;
+/* Hash determinístico de um ponteiro pra um float em [-1, 1]. Usado pra dar
+ * "personalidade" estável a um inimigo sem precisar de um campo id. Como o
+ * endereço do nó não muda enquanto ele vive, o valor é constante por toda a
+ * vida do inimigo. Multiplicação com a constante de Knuth dispersa bits. */
+static float hash_pointer_para_unitario(const void *p) {
+    uintptr_t x = (uintptr_t)p;
+    uint32_t h = (uint32_t)(x ^ (x >> 16));
+    h *= 2654435761u;
+    /* Range [0, 1) → [-1, 1) */
+    return ((float)h / 4294967296.0f) * 2.0f - 1.0f;
 }
 
 
-/* Kiter: tenta manter distância "ideal". Anda na direção do jogador se
- * estiver longe, recua se estiver perto demais. (Disparo de projétil
- * inimigo é um TODO futuro — por ora só posicionamento.) */
-static void ia_kiter(Inimigo *i, EstadoJogo *ej) {
-    const float DISTANCIA_IDEAL = 220.0f;
-
-    float dx = ej->jogador.posicao.x - i->posicao.x;
-    float dy = ej->jogador.posicao.y - i->posicao.y;
-    float distancia = sqrtf(dx * dx + dy * dy);
-    if (distancia < 0.0001f) {
+/* Chase: anda na direção do jogador, com pequena perturbação angular única
+ * por inimigo. Antes, todos vinham em linha reta e aglomeravam num cone
+ * único; agora cada um aproxima por um leve flanco diferente, espalhando
+ * naturalmente os vetores de aproximação. */
+static void ia_chase(Inimigo *i, EstadoJogo *ej) {
+    Vector2 dir = direcao_ate_jogador(i, ej);
+    if (dir.x == 0.0f && dir.y == 0.0f) {
         i->velocidade.x = 0.0f;
         i->velocidade.y = 0.0f;
         return;
     }
 
-    /* Sinal: 1 quando longe demais (aproxima), -1 quando perto demais (recua),
-     * 0 quando dentro de uma faixa morta perto da distância ideal. */
-    float sinal = 0.0f;
-    if (distancia > DISTANCIA_IDEAL + 30.0f) sinal =  1.0f;
-    else if (distancia < DISTANCIA_IDEAL - 30.0f) sinal = -1.0f;
+    /* Offset angular fixo por inimigo, no intervalo ~ ±0.4 rad (~±23°).
+     * Suficiente pra desfilar lateralmente sem perder a sensação de "vai
+     * pra cima do jogador". */
+    float offset = hash_pointer_para_unitario(i) * 0.4f;
+    float c = cosf(offset);
+    float s = sinf(offset);
 
-    i->velocidade.x = (dx / distancia) * sinal * i->velocidade_movimento;
-    i->velocidade.y = (dy / distancia) * sinal * i->velocidade_movimento;
+    /* Rotação 2D do vetor direção pelo offset. */
+    float rx = dir.x * c - dir.y * s;
+    float ry = dir.x * s + dir.y * c;
+
+    i->velocidade.x = rx * i->velocidade_movimento;
+    i->velocidade.y = ry * i->velocidade_movimento;
 }
 
 
-/* Boss: chase mais lento porém implacável. Por enquanto reutiliza chase —
- * deixei o caso separado pra ficar fácil acrescentar fases por % de vida
- * (ex.: abaixo de 50% acelera; abaixo de 25% spawna minions). */
+/* Kiter: forma um círculo coordenado em volta do jogador, fechando ângulos
+ * de fuga. Cada kiter:
+ *   1. Olha pra lista de inimigos e descobre quantos kiters vivos existem (N)
+ *      e qual é o índice "ordenado por ângulo polar" deste kiter (k).
+ *   2. Calcula a posição-alvo do seu slot no círculo:
+ *        raio  = RAIO_BASE + 18 * N            (mais kiters → círculo maior)
+ *        ang   = base + 2π * k / N             (espaçamento uniforme)
+ *        base  = tempo_total * VEL_ORBITAL     (rotação lenta comum a todos)
+ *   3. Move em direção ao alvo. Zona morta de 6px evita jitter.
+ *
+ * Sem campo de id na struct: o "k" é recalculado todo frame ordenando os
+ * kiters pelo ângulo polar atual ao redor do jogador. Isso preserva a
+ * proximidade — um kiter já no flanco direito tende a ficar no flanco
+ * direito mesmo se outro for adicionado/removido. Custo O(N²) por frame
+ * (cada kiter olha todos os outros), aceitável pra N pequeno.
+ *
+ * Disparo de projétil pelo kiter ainda é TODO; por enquanto só
+ * posicionamento. Mas o cerco já fecha rotas de fuga, criando pressão real. */
+static void ia_kiter(Inimigo *i, EstadoJogo *ej) {
+    const float RAIO_BASE        = 260.0f;
+    const float RAIO_POR_KITER   =  18.0f;
+    const float VEL_ORBITAL      =   0.15f;   /* rad/s — rotação lenta comum */
+    const float ZONA_MORTA       =   6.0f;    /* px */
+    const float TWO_PI           =   6.28318530718f;
+
+    /* Vetor do jogador até este kiter — base pra calcular o ângulo polar. */
+    float meu_dx = i->posicao.x - ej->jogador.posicao.x;
+    float meu_dy = i->posicao.y - ej->jogador.posicao.y;
+    float meu_ang = atan2f(meu_dy, meu_dx);
+
+    /* Conta kiters vivos e descobre o índice ordenado deste kiter. Como
+     * atan2 retorna em (-π, π], "menor ângulo" tem ordenação total bem
+     * definida; em caso de empate exato, desempata pelo endereço pra
+     * garantir que dois kiters não disputem o mesmo slot. */
+    int N = 0;
+    int k = 0;
+    for (const InimigoNo *no = ej->inimigos_cabeca;
+         no != NULL;
+         no = no->proximo) {
+        if (!no->dados.vivo) continue;
+        if (no->dados.tipo != INIMIGO_A_DISTANCIA) continue;
+
+        N++;
+
+        if (&no->dados == i) continue;   /* não conta a si mesmo no índice */
+
+        float odx = no->dados.posicao.x - ej->jogador.posicao.x;
+        float ody = no->dados.posicao.y - ej->jogador.posicao.y;
+        float oang = atan2f(ody, odx);
+
+        if (oang < meu_ang) {
+            k++;
+        } else if (oang == meu_ang && (uintptr_t)&no->dados < (uintptr_t)i) {
+            k++;
+        }
+    }
+
+    if (N <= 0) N = 1;   /* defensivo; não deveria acontecer */
+
+    /* Posição alvo do slot. */
+    float raio_circulo = RAIO_BASE + RAIO_POR_KITER * (float)N;
+    float ang_base     = ej->tempo_total * VEL_ORBITAL;
+    float ang_slot     = ang_base + (TWO_PI * (float)k) / (float)N;
+
+    float alvo_x = ej->jogador.posicao.x + raio_circulo * cosf(ang_slot);
+    float alvo_y = ej->jogador.posicao.y + raio_circulo * sinf(ang_slot);
+
+    /* Move em direção ao alvo. */
+    float dx = alvo_x - i->posicao.x;
+    float dy = alvo_y - i->posicao.y;
+    float dist = sqrtf(dx * dx + dy * dy);
+
+    if (dist < ZONA_MORTA) {
+        i->velocidade.x = 0.0f;
+        i->velocidade.y = 0.0f;
+        return;
+    }
+
+    i->velocidade.x = (dx / dist) * i->velocidade_movimento;
+    i->velocidade.y = (dy / dist) * i->velocidade_movimento;
+}
+
+
+/* Boss: chase implacável com fases por % de vida.
+ *   - Acima de 50%:  velocidade base.
+ *   - Abaixo de 50%: 1.25× velocidade.
+ *   - Abaixo de 25%: 1.50× velocidade + spawna 1 corpo a corpo a cada 5s.
+ *
+ * O timer dos minions vive como `static float` interno à função: como o
+ * cronograma garante que existe no máximo 1 chefão na run inteira, não há
+ * conflito entre múltiplas instâncias compartilhando o timer. Reset em
+ * jogo_resetar_run() não toca isso, mas o timer começa em 0 no primeiro
+ * uso e só conta enquanto pct < 0.25, então qualquer "lixo" residual é
+ * sobrescrito pelo `>= INTERVALO_MINIONS` na primeira passagem. */
 static void ia_boss_fases(Inimigo *i, EstadoJogo *ej) {
+    static float timer_minions = 0.0f;
+    const float INTERVALO_MINIONS = 5.0f;
+    const float OFFSET_MINION     = 80.0f;   /* spawn perto do boss */
+
     Vector2 dir = direcao_ate_jogador(i, ej);
 
     float modificador_velocidade = 1.0f;
+    float pct = 1.0f;
     if (i->vida_maxima > 0) {
-        float pct = (float)i->vida / (float)i->vida_maxima;
+        pct = (float)i->vida / (float)i->vida_maxima;
         if (pct < 0.50f) modificador_velocidade = 1.25f;
         if (pct < 0.25f) modificador_velocidade = 1.50f;
     }
 
     i->velocidade.x = dir.x * i->velocidade_movimento * modificador_velocidade;
     i->velocidade.y = dir.y * i->velocidade_movimento * modificador_velocidade;
+
+    /* Fase 3 (< 25% vida): chama reforços. */
+    if (pct < 0.25f) {
+        timer_minions += ej->delta_tempo;
+        if (timer_minions >= INTERVALO_MINIONS) {
+            timer_minions = 0.0f;
+
+            float ang = ((float)rand() / (float)RAND_MAX) * 6.28318530718f;
+            Vector2 pos = {
+                i->posicao.x + cosf(ang) * OFFSET_MINION,
+                i->posicao.y + sinf(ang) * OFFSET_MINION,
+            };
+            inimigos_spawnar_em(ej, pos, INIMIGO_CORPO_A_CORPO);
+        }
+    } else {
+        /* Fora da fase final, mantém o timer pronto pra disparar no
+         * primeiro tick assim que a vida cair abaixo de 25%. */
+        timer_minions = INTERVALO_MINIONS;
+    }
 }
 
 
