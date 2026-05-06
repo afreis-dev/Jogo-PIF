@@ -65,6 +65,12 @@ static void atualizar_cartas_upgrade(EstadoJogo *ej);
 static void atualizar_game_over(EstadoJogo *ej);
 static void atualizar_vitoria(EstadoJogo *ej);
 
+/* Reset completo do estado da run. Chamada toda vez que uma nova run começa
+ * (depois da revelação da profecia). Garante que não sobra nada da run
+ * anterior — listas vazias, jogador na origem com vida cheia. Não toca em
+ * salvamento nem em tempo_total (esses são meta-progressão / debug). */
+static void jogo_resetar_run(EstadoJogo *ej);
+
 
 /* ============================================================================
  * MAIN — PONTO DE ENTRADA
@@ -202,7 +208,11 @@ static void atualizar_menu(EstadoJogo *ej) {
  * começar o combate. */
 static void atualizar_revelacao_profecia(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_SPACE)) {
-        /* Inicia a timeline da run (15 minutos até o chefão). */
+        /* Reseta o estado da run ANTES de iniciar a timeline. Em retries
+         * (game over → menu → nova run), sem isso o jogador continuaria com
+         * vida 0 e a lista de inimigos da run anterior — disparando game
+         * over no primeiro frame de combate. */
+        jogo_resetar_run(ej);
         cronograma_inicializar(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
@@ -290,7 +300,11 @@ static void atualizar_cartas_upgrade(EstadoJogo *ej) {
  * Mostra score, seed e espera input. */
 static void atualizar_game_over(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
-        /* Volta pro menu. Poderia também salvar o score aqui (Dev 2). */
+        /* Libera as listas antes de voltar ao menu — simétrico com a saída
+         * pela pausa. O reset definitivo acontece em jogo_resetar_run() na
+         * próxima run, mas limpar aqui evita segurar memória entre telas. */
+        magias_liberar_tudo(ej);
+        inimigos_liberar_tudo(ej);
         ej->proximo_estado = ESTADO_MENU;
     }
 }
@@ -427,6 +441,23 @@ static void jogo_finalizar(EstadoJogo *ej) {
     magias_liberar_tudo(ej);      /* stub — libera lista encadeada */
     inimigos_liberar_tudo(ej);    /* stub — libera lista encadeada */
     salvamento_salvar(&ej->salvamento);  /* stub — grava arquivo */
+}
+
+
+/* ============================================================================
+ * RESET DE RUN
+ * --------------------------------------------------------------------------
+ * Chamada em todo INÍCIO de run (depois da revelação da profecia). Devolve o
+ * estado a um ponto consistente: listas vazias, jogador na origem com vida
+ * cheia, câmera centrada no jogador. Não mexe em salvamento (meta), em
+ * tempo_total (debug) nem na profecia (já gerada antes).
+ * ========================================================================== */
+static void jogo_resetar_run(EstadoJogo *ej) {
+    magias_liberar_tudo(ej);
+    inimigos_liberar_tudo(ej);
+    jogador_inicializar(&ej->jogador);
+    ej->camera.target = ej->jogador.posicao;
+    ej->tiros_ativos  = true;
 }
 
 
