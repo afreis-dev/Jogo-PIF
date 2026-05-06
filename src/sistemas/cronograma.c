@@ -100,6 +100,16 @@ void cronograma_atualizar(Cronograma *c, EstadoJogo *ej) {
     if (!c->chefao_spawnado &&
         c->tempo_decorrido >= CRONOGRAMA_DURACAO_SEG) {
 
+        /* Limpa a arena ANTES de spawnar o chefão. Dois motivos:
+         *  - Atmosfera: a luta vira só "você vs ele", coerente com o aviso
+         *    visual de boss fight.
+         *  - Garantia: aos 15min a lista pode estar perto de MAX_INIMIGOS
+         *    (eventos sobrepostos somam ~3.6 spawns/s). Sem limpar, o
+         *    inimigos_spawnar_em do chefe pode falhar silenciosamente, e o
+         *    jogo cairia em ESTADO_VITORIA assim que o jogador matasse os
+         *    inimigos restantes — sem chefão na tela. */
+        inimigos_liberar_tudo(ej);
+
         Vector2 pos = ponto_de_spawn_borda(ej);
         inimigos_spawnar_em(ej, pos, INIMIGO_CHEFE);
         c->chefao_spawnado         = true;
