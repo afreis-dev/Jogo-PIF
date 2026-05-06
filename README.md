@@ -22,14 +22,16 @@ Cada run tem uma **seed** visível na tela. Como a profecia é gerada de forma d
 - Raylib 5.5
 - GNU Make 4+
 
-## Instalação do ambiente
+> Setup completo do ambiente (Windows e Linux), incluindo como criar um Makefile do zero, está em [docs/TUTORIAL_AMBIENTE.md](docs/TUTORIAL_AMBIENTE.md). Glossário de termos de jogos e arquitetura usados no projeto: [docs/dicionario.md](docs/dicionario.md).
+
+## Instalação rápida do ambiente
 
 Abra o terminal **MSYS2 UCRT64** e rode:
 
 ```bash
 pacman -Syu
 pacman -S mingw-w64-ucrt-x86_64-raylib
-pacman -S make
+pacman -S mingw-w64-ucrt-x86_64-make
 ```
 
 Valide:
@@ -92,7 +94,10 @@ Jogo-PIF/
 |-- assets/                            <- sprites, sons e fontes
 |-- build/                             <- arquivos .o gerados pelo make
 |-- saves/                             <- progresso gerado em runtime
-|-- docs/                              <- issues e guias internos pro grupo
+|-- docs/                              <- guias internos pro grupo
+|   |-- TUTORIAL_AMBIENTE.md           <- setup do MSYS2/Linux + Makefile do zero
+|   |-- dicionario.md                  <- glossario de termos de jogos e arquitetura
+|   `-- issue-hud-cronograma.md        <- task tecnica pra Sofia (HUD VS-like)
 |-- Makefile
 `-- README.md
 ```
