@@ -83,12 +83,18 @@ Em jogos com customização (RPGs, roguelites), uma **build** é a combinação 
 ### Chase / IA Chase
 Comportamento de inimigo mais simples possível: **andar em linha reta na direção do jogador**. Sem desvio, sem estratégia. Igual ao que você vê em Pac-Man com os fantasmas.
 
-**No projeto:** valor `IA_CHASE` no enum `ComportamentoIA`. Função `ia_chase` em `inimigos_tipos.c`: calcula o vetor jogador menos inimigo, normaliza, escreve em `i->velocidade`. Aplica também uma **perturbação angular** única por inimigo (ver entrada própria) pra que cada um aproxime por um leve flanco em vez de virar fila indiana. Inimigos do tipo `INIMIGO_CORPO_A_CORPO` e `INIMIGO_ELITE` usam essa IA.
+**No projeto:** valor `IA_CHASE` no enum `ComportamentoIA`. Função `ia_chase` em `inimigos_tipos.c`. Tem duas perturbações pra evitar fila indiana e linha reta:
+1. **Offset angular fixo** por inimigo (~±23°, via hash do ponteiro): cada melee vem por um flanco persistente — uns pela direita, outros pela esquerda.
+2. **Tangencial progressivo**: longe vem direto; abaixo de 220px começa a circular, com intensidade que cresce conforme se aproxima. Lado vem do mesmo hash, então é coerente com o flanco fixo. Efeito: na hora do encontro o melee "dança" um pouco antes de bater, dando frame extra pro jogador esquivar.
+
+Inimigos do tipo `INIMIGO_CORPO_A_CORPO` e `INIMIGO_ELITE` usam essa IA.
 
 ### Kite / Kiter / Kiting
 Comportamento oposto ao chase: o inimigo **mantém distância** do jogador. Se o jogador se aproxima, ele recua; se afasta demais, ele aproxima até voltar pra distância "ideal". Geralmente atira de longe. O termo vem de "kiting" em MMOs (segurar o inimigo "preso na linha do papagaio").
 
-**No projeto:** valor `IA_KITER` no enum `ComportamentoIA`. Função `ia_kiter` em `inimigos_tipos.c`. **Coordenado entre inimigos:** cada kiter olha a lista pra descobrir quantos kiters estão vivos (N) e qual é o seu índice ordenado por ângulo polar (k); calcula a posição-alvo do seu slot num círculo em volta do jogador, e move pra lá. Resultado: cercar o jogador em formação (ver entrada "Formação circular / Cerco"). `INIMIGO_A_DISTANCIA` é um kiter típico.
+**No projeto:** valor `IA_KITER` no enum `ComportamentoIA`. Função `ia_kiter` em `inimigos_tipos.c`. **IA isolada com personalidade individual:** cada kiter combina dois componentes — um **radial** que mantém a distância ideal (240px ± 30) e um **tangencial fixo** (orbita um lado ou outro, escolhido por hash do ponteiro estável durante a vida do nó). Sem coordenação entre kiters: a formação emerge naturalmente porque metade orbita num sentido e metade no outro, espalhados em volta do jogador. `INIMIGO_A_DISTANCIA` é um kiter típico.
+
+> Versão anterior tentou coordenação explícita (slots por ordenação angular num círculo orbital comum) mas ficou visualmente artificial — carrossel mecânico, raio crescendo ao spawnar mais um, slots saltando quando algum morria. A versão isolada é mais orgânica.
 
 ### Elite
 **Versão buffada** de um inimigo comum: mesma "ideia" geral mas com mais HP, mais dano, mais velocidade e dropa mais recompensa. Tipicamente roxo/dourado pra destacar.
@@ -103,7 +109,7 @@ Termo do GDD pro jogador. AUGUR é mundo de magia — o protagonista não é um 
 ### Formação / Cerco / Surround
 Quando vários inimigos **se distribuem em volta do jogador** em vez de virem todos do mesmo lado. Fechando ângulos de fuga, viram pressão real: você não tem um "lado seguro" pra recuar. Em jogos com muitos inimigos é o que diferencia "burros me seguindo" de "inteligentes me cercando".
 
-**No projeto:** os kiters (`IA_KITER`) formam um círculo coordenado em volta do jogador. Cada kiter calcula seu **slot** angular: conta quantos kiters vivos existem (N), descobre seu índice por ordenação angular (k), e mira em `jogador.posicao + raio*(cos(ang), sin(ang))` com `ang = base + 2π*k/N`. A `base` rotaciona devagar com o tempo, criando **rotação orbital** — o círculo todo gira lentamente, criando pressão tangencial. Implementação em `ia_kiter` em `inimigos_tipos.c`.
+**No projeto:** os kiters (`IA_KITER`) formam o cerco **emergentemente**, sem coordenação explícita: cada kiter tem um **lado de orbita persistente** (horário ou anti-horário) escolhido por hash do ponteiro. Como o hash divide ~50/50, o resultado natural é que metade do grupo dança no flanco direito e metade no esquerdo. O push-out entre inimigos espalha os que orbitam pelo mesmo lado. Implementação em `ia_kiter` em `inimigos_tipos.c`.
 
 ### Grimório
 Termo da fantasia: **livro de magias** do feiticeiro. Em jogos, costuma ser usado pro pool de magias disponíveis pro jogador.
@@ -383,7 +389,7 @@ Numa **IA isolada**, cada inimigo decide o que fazer olhando só o jogador, sem 
 
 Numa **IA coordenada**, cada inimigo lê (ou compartilha) o estado dos outros pra dividir tarefas. Custo: complexidade extra (precisa iterar a lista, pode ser O(N²)). Ganho: comportamento que parece inteligente — cercar, flanquear, formar parede.
 
-**No projeto:** a `ia_kiter` em `inimigos_tipos.c` é coordenada. Cada kiter olha a lista pra contar quantos kiters vivos existem (N) e qual é seu índice (k) por ordenação angular, daí ocupa um slot único num círculo orbital comum. A `ia_chase` ainda é isolada (cada melee só olha o jogador), mas tem perturbação angular pseudo-aleatória pra dispersar.
+**No projeto:** atualmente todas as IAs em `inimigos_tipos.c` são **isoladas** com personalidade individual. Cada inimigo deriva valores estáveis (offset angular, lado de orbita) de um hash do seu ponteiro, sem olhar os outros. A formação emerge do conjunto, não de coordenação explícita. Uma versão coordenada do kiter foi testada (slots num círculo orbital comum, ordenação angular) mas ficou visualmente mecânica e foi revertida. O push-out físico entre inimigos faz o trabalho que normalmente exigiria steering coordenado.
 
 ### Engine vs Conteúdo
 **Engine** = o motor do jogo: alocação de memória, loops, render genérico, dispatch de comportamentos. Não fala "fogo dá 18 de dano" — fala "leia o dano da tabela e aplique".
