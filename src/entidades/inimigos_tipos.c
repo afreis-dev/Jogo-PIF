@@ -120,114 +120,135 @@ static float hash_pointer_para_unitario(const void *p) {
 }
 
 
-/* Chase: anda na direção do jogador, com pequena perturbação angular única
- * por inimigo. Antes, todos vinham em linha reta e aglomeravam num cone
- * único; agora cada um aproxima por um leve flanco diferente, espalhando
- * naturalmente os vetores de aproximação. */
+/* Chase: anda na direção do jogador. Duas perturbações pra dar vida ao
+ * movimento sem virar fila indiana ou linha reta:
+ *
+ *   1. OFFSET ANGULAR FIXO por inimigo (~±23°), via hash do ponteiro.
+ *      Cada melee aproxima por um flanco persistente — uns vêm pela
+ *      direita, outros pela esquerda. Distribui os vetores de aproximação.
+ *
+ *   2. TANGENCIAL PROGRESSIVO: longe vem direto; perto (< 220px) começa
+ *      a circular. A intensidade do componente lateral cresce conforme
+ *      o melee se aproxima — `(1 - dist/RAIO_TANG) * PESO_TANG`. Lado
+ *      (horário/anti-horário) vem do mesmo hash, então é estável e
+ *      coerente com o offset fixo. Efeito: na hora do encontro o melee
+ *      "dança" um pouco antes de bater, dando frame extra pro jogador
+ *      esquivar e tornando a horda menos previsível. */
 static void ia_chase(Inimigo *i, EstadoJogo *ej) {
-    Vector2 dir = direcao_ate_jogador(i, ej);
-    if (dir.x == 0.0f && dir.y == 0.0f) {
+    const float OFFSET_ANG = 0.4f;     /* ±0.4 rad (~±23°) */
+    const float RAIO_TANG  = 220.0f;   /* px — começa a circular abaixo disso */
+    const float PESO_TANG  = 0.55f;    /* intensidade máxima do tangencial */
+
+    /* Distância e direção até o jogador. */
+    float dx = ej->jogador.posicao.x - i->posicao.x;
+    float dy = ej->jogador.posicao.y - i->posicao.y;
+    float dist = sqrtf(dx * dx + dy * dy);
+    if (dist < 0.0001f) {
         i->velocidade.x = 0.0f;
         i->velocidade.y = 0.0f;
         return;
     }
+    float dirx = dx / dist;
+    float diry = dy / dist;
 
-    /* Offset angular fixo por inimigo, no intervalo ~ ±0.4 rad (~±23°).
-     * Suficiente pra desfilar lateralmente sem perder a sensação de "vai
-     * pra cima do jogador". */
-    float offset = hash_pointer_para_unitario(i) * 0.4f;
-    float c = cosf(offset);
-    float s = sinf(offset);
+    /* Hash do ponteiro: usado pro offset angular E pro lado do tangencial.
+     * Ambos usam a mesma personalidade — aproximação por flanco fixo. */
+    float h = hash_pointer_para_unitario(i);
 
-    /* Rotação 2D do vetor direção pelo offset. */
-    float rx = dir.x * c - dir.y * s;
-    float ry = dir.x * s + dir.y * c;
+    /* 1. Rotação 2D do vetor direção pelo offset angular fixo. */
+    float ang = h * OFFSET_ANG;
+    float ca = cosf(ang);
+    float sa = sinf(ang);
+    float rx = dirx * ca - diry * sa;
+    float ry = dirx * sa + diry * ca;
+
+    /* 2. Tangencial progressivo: cresce conforme se aproxima. Zera fora do
+     * raio de ativação. Usa cópias do (rx, ry) original pra que a soma do
+     * y não enxergue o x já modificado — senão o vetor lateral fica torto. */
+    if (dist < RAIO_TANG) {
+        float intensidade = (1.0f - dist / RAIO_TANG) * PESO_TANG;
+        float lado = (h >= 0.0f) ? 1.0f : -1.0f;
+        float ox = rx;
+        float oy = ry;
+        rx = ox + (-oy) * intensidade * lado;
+        ry = oy + ( ox) * intensidade * lado;
+        /* Renormaliza pra manter velocidade constante. */
+        float mag = sqrtf(rx * rx + ry * ry);
+        if (mag > 0.0001f) {
+            rx /= mag;
+            ry /= mag;
+        }
+    }
 
     i->velocidade.x = rx * i->velocidade_movimento;
     i->velocidade.y = ry * i->velocidade_movimento;
 }
 
 
-/* Kiter: forma um círculo coordenado em volta do jogador, fechando ângulos
- * de fuga. Cada kiter:
- *   1. Olha pra lista de inimigos e descobre quantos kiters vivos existem (N)
- *      e qual é o índice "ordenado por ângulo polar" deste kiter (k).
- *   2. Calcula a posição-alvo do seu slot no círculo:
- *        raio  = RAIO_BASE + 18 * N            (mais kiters → círculo maior)
- *        ang   = base + 2π * k / N             (espaçamento uniforme)
- *        base  = tempo_total * VEL_ORBITAL     (rotação lenta comum a todos)
- *   3. Move em direção ao alvo. Zona morta de 6px evita jitter.
+/* Kiter: cada inimigo decide isoladamente — sem coordenação explícita
+ * entre eles. A "formação" emerge naturalmente do conjunto:
  *
- * Sem campo de id na struct: o "k" é recalculado todo frame ordenando os
- * kiters pelo ângulo polar atual ao redor do jogador. Isso preserva a
- * proximidade — um kiter já no flanco direito tende a ficar no flanco
- * direito mesmo se outro for adicionado/removido. Custo O(N²) por frame
- * (cada kiter olha todos os outros), aceitável pra N pequeno.
+ *   1. Componente RADIAL (aproxima/recua):
+ *        - longe demais (> ideal + zona)  → aproxima
+ *        - perto demais (< ideal - zona)  → recua
+ *        - dentro da zona ideal           → estaciona radialmente
+ *   2. Componente TANGENCIAL (orbita):
+ *        - sempre presente, intensidade fixa (peso 0.6)
+ *        - lado (horário ou anti-horário) é PERSISTENTE por kiter,
+ *          determinado por hash do ponteiro do nó. Metade dos kiters
+ *          orbita num sentido, metade no outro — uns ficam no flanco
+ *          direito, outros no esquerdo, formando um cerco natural.
+ *   3. Vetor final = normalize(radial + tangencial) * velocidade.
  *
- * Disparo de projétil pelo kiter ainda é TODO; por enquanto só
- * posicionamento. Mas o cerco já fecha rotas de fuga, criando pressão real. */
+ * Por que abandonei a versão "círculo coordenado": parecia carrossel
+ * mecânico — todos giravam no mesmo sentido, raio crescia ao spawnar
+ * novo, slots saltavam quando algum morria. A versão isolada é mais
+ * orgânica, sem custo de O(N²), e o push-out de inimigos.c ainda evita
+ * sobreposição. Disparo de projétil pelo kiter continua TODO. */
 static void ia_kiter(Inimigo *i, EstadoJogo *ej) {
-    const float RAIO_BASE        = 260.0f;
-    const float RAIO_POR_KITER   =  18.0f;
-    const float VEL_ORBITAL      =   0.15f;   /* rad/s — rotação lenta comum */
-    const float ZONA_MORTA       =   6.0f;    /* px */
-    const float TWO_PI           =   6.28318530718f;
+    const float DISTANCIA_IDEAL = 240.0f;
+    const float ZONA            =  30.0f;
+    const float PESO_TANG       =   0.6f;
 
-    /* Vetor do jogador até este kiter — base pra calcular o ângulo polar. */
-    float meu_dx = i->posicao.x - ej->jogador.posicao.x;
-    float meu_dy = i->posicao.y - ej->jogador.posicao.y;
-    float meu_ang = atan2f(meu_dy, meu_dx);
-
-    /* Conta kiters vivos e descobre o índice ordenado deste kiter. Como
-     * atan2 retorna em (-π, π], "menor ângulo" tem ordenação total bem
-     * definida; em caso de empate exato, desempata pelo endereço pra
-     * garantir que dois kiters não disputem o mesmo slot. */
-    int N = 0;
-    int k = 0;
-    for (const InimigoNo *no = ej->inimigos_cabeca;
-         no != NULL;
-         no = no->proximo) {
-        if (!no->dados.vivo) continue;
-        if (no->dados.tipo != INIMIGO_A_DISTANCIA) continue;
-
-        N++;
-
-        if (&no->dados == i) continue;   /* não conta a si mesmo no índice */
-
-        float odx = no->dados.posicao.x - ej->jogador.posicao.x;
-        float ody = no->dados.posicao.y - ej->jogador.posicao.y;
-        float oang = atan2f(ody, odx);
-
-        if (oang < meu_ang) {
-            k++;
-        } else if (oang == meu_ang && (uintptr_t)&no->dados < (uintptr_t)i) {
-            k++;
-        }
-    }
-
-    if (N <= 0) N = 1;   /* defensivo; não deveria acontecer */
-
-    /* Posição alvo do slot. */
-    float raio_circulo = RAIO_BASE + RAIO_POR_KITER * (float)N;
-    float ang_base     = ej->tempo_total * VEL_ORBITAL;
-    float ang_slot     = ang_base + (TWO_PI * (float)k) / (float)N;
-
-    float alvo_x = ej->jogador.posicao.x + raio_circulo * cosf(ang_slot);
-    float alvo_y = ej->jogador.posicao.y + raio_circulo * sinf(ang_slot);
-
-    /* Move em direção ao alvo. */
-    float dx = alvo_x - i->posicao.x;
-    float dy = alvo_y - i->posicao.y;
+    float dx = ej->jogador.posicao.x - i->posicao.x;
+    float dy = ej->jogador.posicao.y - i->posicao.y;
     float dist = sqrtf(dx * dx + dy * dy);
-
-    if (dist < ZONA_MORTA) {
+    if (dist < 0.0001f) {
         i->velocidade.x = 0.0f;
         i->velocidade.y = 0.0f;
         return;
     }
 
-    i->velocidade.x = (dx / dist) * i->velocidade_movimento;
-    i->velocidade.y = (dy / dist) * i->velocidade_movimento;
+    /* Direção radial unitária (aponta do kiter pro jogador). */
+    float rx = dx / dist;
+    float ry = dy / dist;
+
+    /* Componente radial: 1 quando longe, -1 quando perto, 0 na zona ideal. */
+    float radial = 0.0f;
+    if      (dist > DISTANCIA_IDEAL + ZONA) radial =  1.0f;
+    else if (dist < DISTANCIA_IDEAL - ZONA) radial = -1.0f;
+
+    /* Componente tangencial: perpendicular à radial, com sinal persistente
+     * por kiter. Hash >= 0 → orbita no sentido anti-horário; < 0 → horário.
+     * Como o hash vem do endereço do nó (estável durante a vida), o sentido
+     * não muda entre frames — sem jitter. */
+    float lado = (hash_pointer_para_unitario(i) >= 0.0f) ? 1.0f : -1.0f;
+    float tx = -ry * lado;
+    float ty =  rx * lado;
+
+    /* Soma vetorial e normalização final. */
+    float vx = rx * radial + tx * PESO_TANG;
+    float vy = ry * radial + ty * PESO_TANG;
+    float mag = sqrtf(vx * vx + vy * vy);
+
+    if (mag < 0.0001f) {
+        i->velocidade.x = 0.0f;
+        i->velocidade.y = 0.0f;
+        return;
+    }
+
+    i->velocidade.x = (vx / mag) * i->velocidade_movimento;
+    i->velocidade.y = (vy / mag) * i->velocidade_movimento;
 }
 
 
