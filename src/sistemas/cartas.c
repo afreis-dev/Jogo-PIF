@@ -143,19 +143,19 @@ void cartas_desenhar_ui(const EstadoJogo *ej) {
 
 
 
-    if(ej->escolhas_upgrade[0].raridade == 0){
+    if(ej->escolhas_upgrade[2].raridade == 0){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, GRAY);
     }
-    else if(ej->escolhas_upgrade[0].raridade == 1){
+    else if(ej->escolhas_upgrade[2].raridade == 1){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, GREEN);
     }
-    else if(ej->escolhas_upgrade[0].raridade == 2){
+    else if(ej->escolhas_upgrade[2].raridade == 2){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, BLUE);
     }
-    else if(ej->escolhas_upgrade[0].raridade == 3){
+    else if(ej->escolhas_upgrade[2].raridade == 3){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, PURPLE);
     }
-    else if(ej->escolhas_upgrade[0].raridade == 4){
+    else if(ej->escolhas_upgrade[2].raridade == 4){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, RED);
     }
     if(ej->escolhas_upgrade[0].raridade == 5){
