@@ -49,6 +49,8 @@ Progresso permanente do jogador que **persiste entre runs**, mesmo quando ele mo
 
 **No projeto:** a moeda é a **biomassa**. Acumula no `DadosSalvos.biomassa_total` (salvo em `saves/biomassa.dat`) e desbloqueia novos dados, magias e profecias.
 
+> **Vocabulário, não poder.** O design do AUGUR é deliberado: a meta-progressão **não te deixa mais forte diretamente** — desbloqueia *opções* (novos dados com perfis de risco, novas magias, novas mutações passivas, dicas de Profecia). Quem joga há mais tempo resolve profecias mais variadas porque tem mais ferramentas, não porque os números cresceram. Esse é o "vocabulário" — citado no GDD na seção de Meta-progressão.
+
 ---
 
 ## Combate, IA e entidades
@@ -58,6 +60,11 @@ Ataque de **área** — afeta todo mundo dentro de um círculo/região, em vez d
 
 **No projeto:** o efeito `EF_EXPLOSAO` em `tipos.h` é AoE. As tabelas em `profecia.c` chamam de "Explosao em area".
 
+### Build
+Em jogos com customização (RPGs, roguelites), uma **build** é a combinação específica de magias, upgrades e atributos que o jogador montou pra aquela run. Não é uma escolha única — é o pacote inteiro. "Build de fogo crítico", "build de tankar dano e refletir" etc.
+
+**No projeto:** cada run AUGUR vira uma build emergente: a Profecia define o que sinergiza com o quê, e as cartas escolhidas a cada minuto cheio constroem o pacote final. Como a profecia é diferente toda run (`profecia.c`), a build ótima também muda — e é justamente isso que o GDD chama de "não existe meta fixo".
+
 ### Auto-fire
 **Atirar automaticamente**, sem o jogador apertar tecla de tiro. A magia dispara sozinha quando o cooldown zera, geralmente mirando no alvo mais próximo.
 
@@ -66,7 +73,7 @@ Ataque de **área** — afeta todo mundo dentro de um círculo/região, em vez d
 ### Boss / Chefão
 **Inimigo gigante e excepcional**, geralmente no fim de uma fase. Tem muito mais HP, dano e às vezes fases por % de vida (muda de comportamento ao perder HP).
 
-**No projeto:** `INIMIGO_CHEFE` no enum `TipoInimigo`. A engine spawna automaticamente aos 15:00 da timeline. Usa a IA `IA_BOSS_FASES`, que acelera o chefão conforme ele perde vida (50% e 25%).
+**No projeto:** `INIMIGO_CHEFE` no enum `TipoInimigo`. A engine spawna automaticamente aos 15:00 da timeline depois de **limpar a arena** (libera todos os inimigos vivos pra criar atmosfera de boss fight). Usa a IA `IA_BOSS_FASES` com 3 fases: acima de 50% velocidade base; abaixo de 50% acelera 1.25×; abaixo de 25% acelera 1.5× **e** spawna 1 minion (corpo a corpo) a cada 5s perto dele.
 
 ### Buff / Debuff
 **Buff** = efeito *positivo* temporário (mais dano, mais velocidade, escudo). **Debuff** = efeito *negativo* (lento, queimando, com menos defesa).
@@ -76,27 +83,59 @@ Ataque de **área** — afeta todo mundo dentro de um círculo/região, em vez d
 ### Chase / IA Chase
 Comportamento de inimigo mais simples possível: **andar em linha reta na direção do jogador**. Sem desvio, sem estratégia. Igual ao que você vê em Pac-Man com os fantasmas.
 
-**No projeto:** valor `IA_CHASE` no enum `ComportamentoIA`. Função `ia_chase` em `inimigos_tipos.c`: calcula o vetor jogador menos inimigo, normaliza, escreve em `i->velocidade`. Inimigos do tipo `INIMIGO_CORPO_A_CORPO` e `INIMIGO_ELITE` usam essa IA.
+**No projeto:** valor `IA_CHASE` no enum `ComportamentoIA`. Função `ia_chase` em `inimigos_tipos.c`: calcula o vetor jogador menos inimigo, normaliza, escreve em `i->velocidade`. Aplica também uma **perturbação angular** única por inimigo (ver entrada própria) pra que cada um aproxime por um leve flanco em vez de virar fila indiana. Inimigos do tipo `INIMIGO_CORPO_A_CORPO` e `INIMIGO_ELITE` usam essa IA.
 
 ### Kite / Kiter / Kiting
 Comportamento oposto ao chase: o inimigo **mantém distância** do jogador. Se o jogador se aproxima, ele recua; se afasta demais, ele aproxima até voltar pra distância "ideal". Geralmente atira de longe. O termo vem de "kiting" em MMOs (segurar o inimigo "preso na linha do papagaio").
 
-**No projeto:** valor `IA_KITER` no enum `ComportamentoIA`. Função `ia_kiter` em `inimigos_tipos.c` mira numa distância ideal de 220px. `INIMIGO_A_DISTANCIA` é um kiter típico.
+**No projeto:** valor `IA_KITER` no enum `ComportamentoIA`. Função `ia_kiter` em `inimigos_tipos.c`. **Coordenado entre inimigos:** cada kiter olha a lista pra descobrir quantos kiters estão vivos (N) e qual é o seu índice ordenado por ângulo polar (k); calcula a posição-alvo do seu slot num círculo em volta do jogador, e move pra lá. Resultado: cercar o jogador em formação (ver entrada "Formação circular / Cerco"). `INIMIGO_A_DISTANCIA` é um kiter típico.
 
 ### Elite
 **Versão buffada** de um inimigo comum: mesma "ideia" geral mas com mais HP, mais dano, mais velocidade e dropa mais recompensa. Tipicamente roxo/dourado pra destacar.
 
 **No projeto:** `INIMIGO_ELITE` em `TipoInimigo`. Stats em `inimigos_tipos.c` na tabela `PARAMETROS_INIMIGO[]` — vida 90, dano 18, cor roxa. A timeline (em `cronograma_eventos.c`) só começa a spawnar elites a partir dos 5:00 da run.
 
+### Feiticeiro / Wizard
+Termo do GDD pro jogador. AUGUR é mundo de magia — o protagonista não é um soldado, é um conjurador.
+
+**No projeto:** a struct `Jogador` em `tipos.h` é o feiticeiro. Mecanicamente igual a qualquer "player" de bullet hell: posição, velocidade, raio, vida. As **mutações passivas** da meta-progressão são desbloqueios permanentes do feiticeiro (bônus que valem em toda run, independente da Profecia).
+
+### Formação / Cerco / Surround
+Quando vários inimigos **se distribuem em volta do jogador** em vez de virem todos do mesmo lado. Fechando ângulos de fuga, viram pressão real: você não tem um "lado seguro" pra recuar. Em jogos com muitos inimigos é o que diferencia "burros me seguindo" de "inteligentes me cercando".
+
+**No projeto:** os kiters (`IA_KITER`) formam um círculo coordenado em volta do jogador. Cada kiter calcula seu **slot** angular: conta quantos kiters vivos existem (N), descobre seu índice por ordenação angular (k), e mira em `jogador.posicao + raio*(cos(ang), sin(ang))` com `ang = base + 2π*k/N`. A `base` rotaciona devagar com o tempo, criando **rotação orbital** — o círculo todo gira lentamente, criando pressão tangencial. Implementação em `ia_kiter` em `inimigos_tipos.c`.
+
+### Grimório
+Termo da fantasia: **livro de magias** do feiticeiro. Em jogos, costuma ser usado pro pool de magias disponíveis pro jogador.
+
+**No projeto:** o "Grimório de Magias" é uma das categorias de meta-progressão (GDD). Aumentar o grimório = desbloquear novas magias que vão entrar no sorteio inicial e nas cartas de upgrade. Não tem struct dedicada ainda; será um array de booleans em `DadosSalvos`.
+
+### Hit
+Acerto. Tanto "o projétil acertou o inimigo" quanto "o inimigo me acertou" são "hits".
+
+**No projeto:** as condições da profecia usam isso muito: `COND_AO_ACERTAR` (toda vez que magia acerta), `COND_EM_CRITICO` (quando o hit é crítico), `COND_AO_RECEBER_DANO` (quando o jogador toma um hit).
+
 ### Combo
 Sequência de acertos/abates dentro de uma janela de tempo curta. Geralmente recompensa o jogador (mais dano, gatilho de efeito).
 
 **No projeto:** a condição `COND_COMBO_X3` em `tipos.h` dispara o efeito da profecia depois de 3 kills seguidos.
 
+### Combo emergente
+Interação entre dois sistemas (geralmente magias) que **cria um efeito não documentado** — o jogador descobre por experimentação. Não é uma feature listada em tutorial; é uma consequência natural das regras se combinarem. Quando o sistema permite combos emergentes, o jogador "inventa" estratégias e isso vira parte da identidade do jogo.
+
+**No projeto:** o GDD lista dois exemplos planejados: **Choque Térmico** (Bola de Fogo + Nova de Gelo → stun de 2s e dano triplicado na próxima hit) e **Corrente Arcana + Nuvem Venenosa** (cadência da corrente dobra dentro da nuvem). Implementação ainda pendente — cabe à Luísa preencher conforme as magias forem ganhando comportamento.
+
 ### Cooldown
 **Tempo de espera** entre dois usos de uma habilidade. Aperto a magia → ela dispara → preciso esperar X segundos pra usar de novo.
 
 **No projeto:** em `magias_tipos.c`, o campo `intervalo_disparo` da tabela `PARAMETROS_MAGIA` é o cooldown do auto-fire por elemento (ex.: relâmpago dispara a cada 0.30s, sombra a cada 0.65s).
+
+### Dado / Roll / Risco gerenciado
+**Dado** (no AUGUR) é um recurso ativo e limitado que o jogador escolhe gastar pra **rolar** (rerollar) o valor de uma carta de upgrade. O resultado pode ser melhor, igual ou pior que o valor base — não é RNG passivo, é **risco gerenciado**: você está aceitando uma faixa de resultados, não um número fixo.
+
+Tipos planejados (GDD): `d6 Comum` (1–6 uniforme, inicial), `d6 Viciado` (sem 1, 2 ou 6 — seguro), `d4` (1–4, baixa variância), `d8` (1–8, alta variância), `d6 Maldito` (extremos mais frequentes), `d6 Profético` (mostra o resultado antes de confirmar).
+
+**No projeto:** struct `Dado` em `tipos.h` (campos `faces`, `ultimo_resultado`). O array `EstadoJogo.dados_ativos[MAX_DADOS_JOGADOR]` guarda os 2 dados que o jogador trouxe pra run. Implementação completa em `dados.c` é responsabilidade da Sofia.
 
 ### Dash
 **Investida rápida** numa direção, geralmente curta e com cooldown. Em jogos top-down funciona como esquiva ofensiva.
@@ -108,15 +147,15 @@ Dano **contínuo ao longo do tempo**, não num pulso só. Ex.: queimadura que ti
 
 **No projeto:** `EF_VENENO` em `tipos.h` é um DoT. O comentário no enum literalmente diz `/* DoT */`.
 
-### Hit
-Acerto. Tanto "o projétil acertou o inimigo" quanto "o inimigo me acertou" são "hits".
-
-**No projeto:** as condições da profecia usam isso muito: `COND_AO_ACERTAR` (toda vez que magia acerta), `COND_EM_CRITICO` (quando o hit é crítico), `COND_AO_RECEBER_DANO` (quando o jogador toma um hit).
-
 ### Hitbox
 Área **invisível** que define onde uma entidade pode ser atingida. Em jogos 2D simples, costuma ser um círculo ou retângulo.
 
 **No projeto:** o `raio` em `Jogador`, `Inimigo` e `Magia` (em `tipos.h`) é a hitbox circular. A colisão em `colisao.c` usa esses raios pra decidir se duas coisas se tocaram.
+
+### Horda
+**Grupo grande de inimigos vindo ao mesmo tempo.** Em bullet hell e roguelite, hordas crescem em densidade conforme a run avança — começa com poucos, termina com a tela cheia.
+
+**No projeto:** a `cronograma_eventos.c` modela hordas de forma declarativa. Cada linha da tabela diz "do tempo X ao tempo Y, spawnar tipo T a cada Z segundos". Sobreposição de eventos = horda mais densa (ex.: aos 8:00 melee acelera pra 0.8s e elites começam a 5.0s, criando pressão simultânea).
 
 ### HP (Health Points)
 **Pontos de vida.** Quando chega a zero, a entidade morre.
@@ -132,6 +171,21 @@ Acerto. Tanto "o projétil acertou o inimigo" quanto "o inimigo me acertou" são
 **Empurrão** que um ataque dá no alvo. Ataque com knockback pra fora afasta o inimigo; sem knockback ele "fica colado" em você.
 
 **No projeto:** ainda não implementado. Em `colisao.c` há um comentário mencionando que seria legal adicionar knockback no contato jogador-inimigo no jogo final. Por ora, só dano puro.
+
+### Mutação passiva
+Bônus permanente do **feiticeiro** que vale em todas as runs, independente da Profecia. Ao contrário de uma carta de upgrade (que vive só na run atual), uma mutação fica desbloqueada pra sempre depois que você gasta biomassa nela.
+
+**No projeto:** ainda não implementado em código. Reservado em `tipos.h` (`DadosSalvos` tem espaço pra contadores de desbloqueio) e listado no GDD como uma das categorias de meta-progressão.
+
+### Minion / Reforço
+Inimigo **secundário invocado por outro inimigo** (geralmente um chefão ou elite). Aparece em fases finais pra aumentar pressão — em vez de só lidar com o boss, você precisa lidar com o boss + os bichinhos que ele chama.
+
+**No projeto:** o chefão (`IA_BOSS_FASES`) spawna 1 corpo a corpo a cada 5s **abaixo de 25% de vida**. Implementação em `ia_boss_fases` em `inimigos_tipos.c`, com timer interno em `static float`.
+
+### Perturbação angular / Variação angular
+Pequeno **deslocamento aleatório** aplicado à direção que um inimigo segue. Sem isso, todos viajam exatamente em linha reta até o jogador e formam fila indiana. Com uma perturbação fixa por inimigo (~±20°), cada um aproxima por um flanco diferente, dispersando naturalmente.
+
+**No projeto:** a `ia_chase` em `inimigos_tipos.c` aplica um offset angular de até ±0.4 rad (~23°) na direção até o jogador. O valor é estável durante a vida do inimigo porque vem de um hash do endereço do nó (ver "Hash de ponteiro / Pseudo-id").
 
 ### Piercing (Penetrante)
 Atributo de projétil que **atravessa o primeiro alvo** em vez de sumir. Útil pra hit em fila.
@@ -158,6 +212,11 @@ Cada **iteração regular** de um efeito que tem duração. Um veneno de "5 dano
 
 **No projeto:** a condição `COND_A_CADA_5S` em `tipos.h` é um tick a cada 5 segundos.
 
+### Zona morta (Deadzone)
+**Faixa de valores onde o sistema ignora a entrada** ou para de agir. Em IA, é uma região perto do alvo onde o inimigo simplesmente para em vez de tentar correções minúsculas (que só causariam jitter). Em controles físicos (joystick), é o intervalo perto do centro onde pequenos desvios não contam, evitando movimento parasita.
+
+**No projeto:** a `ia_kiter` em `inimigos_tipos.c` para o inimigo se a distância até o slot do círculo for menor que 6 pixels — sem isso, o kiter ficaria oscilando 1px pra lá e pra cá quando perto demais do alvo.
+
 ---
 
 ## HUD e interface
@@ -182,10 +241,20 @@ Estado em que o **mundo congela**: tempo não avança, inimigos não se movem, p
 
 **No projeto:** `ESTADO_PAUSA` na máquina de estados. Acionado por ESC durante o combate. Tecnicamente o `switch` em `jogo_atualizar` simplesmente não chama `cronograma_atualizar`, `magias_atualizar` etc. quando o estado é `ESTADO_PAUSA` — é assim que tudo congela. ESC retoma; ENTER volta ao menu.
 
+### Polish
+Ajustes finais que **fazem o jogo "sentir bem"**: timing certo das animações, partículas, screenshake, balanceamento de números, feedback sonoro. Não muda o jogo no nível de regras — muda como o jogo "soa". É a fase final do desenvolvimento, depois que tudo já funciona mecanicamente.
+
+**No projeto:** a semana 5 do cronograma do GDD (26/05–31/05) é "Polish & Entrega" — screenshake em explosões, partículas de morte, balanceamento de dificuldade, gravação do vídeo. Hoje (07/05) ainda estamos em fase de feature; polish vem depois.
+
 ### Score
 **Pontuação.** Em roguelites geralmente é "até onde você chegou" + abates + tempo.
 
-**No projeto:** será implementado pela Sofia em `salvamento.c` (campo `melhor_onda` em `DadosSalvos` em `tipos.h` já existe pra registrar o recorde).
+**No projeto:** o GDD prevê **top 10 scores em arquivo** (`scores.dat`) com seed visível, pra o jogador poder reproduzir runs interessantes. Implementação em `salvamento.c` é responsabilidade da Sofia. O campo `DadosSalvos.melhor_onda` em `tipos.h` é placeholder; o nome ficou de quando ainda existia o conceito de "onda" — vai virar `melhor_tempo` ou similar quando o módulo for refeito.
+
+### Screenshake
+Efeito de **tremer a câmera** durante eventos impactantes (explosão, hit forte, morte). Dá peso ao impacto sem precisar de dano numérico maior.
+
+**No projeto:** ainda não implementado. Listado pro polish (semana 5 do GDD) — partículas de morte e screenshake em explosões. Implementação típica: durante alguns frames depois do evento, somar um pequeno offset aleatório a `camera.target` antes de renderizar.
 
 ### Toggle
 **Botão liga/desliga.** Apertar uma vez liga, apertar de novo desliga. Diferente de um botão que só dispara enquanto pressionado.
@@ -196,10 +265,22 @@ Estado em que o **mundo congela**: tempo não avança, inimigos não se movem, p
 
 ## Engine e renderização
 
+### atan2 / Ângulo polar
+**`atan2(y, x)`** é uma função matemática (em `<math.h>`) que devolve o **ângulo em radianos** correspondente ao vetor `(x, y)`, no intervalo `(-π, π]`. Diferente de `atan(y/x)`, ela considera o sinal de cada componente — distingue, por exemplo, segundo de quarto quadrante.
+
+**Ângulo polar** é o ângulo de um ponto em relação a uma origem (geralmente o jogador). Útil pra organizar inimigos em volta dele de forma coerente: quem está em "30°" fica à direita-em-baixo, quem está em "180°" fica à esquerda, etc.
+
+**No projeto:** a `ia_kiter` em `inimigos_tipos.c` usa `atan2f` pra calcular o ângulo polar de cada kiter ao redor do jogador, e ordena os kiters por esse ângulo pra atribuir slots numa formação circular (ver "Formação / Cerco").
+
 ### BeginMode2D / EndMode2D
 Funções do Raylib que **abrem e fecham um bloco com câmera 2D ativa**. Tudo desenhado entre os dois é interpretado em **coordenadas de mundo** (a câmera aplica offset/zoom). Fora do bloco, tudo é coord de tela.
 
 **No projeto:** em `main.c`, o bloco `BeginMode2D(ej->camera) ... EndMode2D()` engloba o desenho do grid, jogador, inimigos, magias e obstáculos. O HUD vem **depois** do `EndMode2D` porque deve ficar fixo na tela.
+
+### CLI / Linha de comando
+**Command Line Interface.** Programa que roda no terminal e desenha "gráficos" usando caracteres (ASCII art) na grade do terminal, em vez de uma janela gráfica com pixels.
+
+**No projeto:** o spec do PIF cita a **CLI-LIB** (`github.com/tgfb/cli-lib/`) como biblioteca padrão sugerida — ela cuida de manipulação de tela, teclado e timer no terminal. AUGUR optou por **Raylib** (também permitido pelo spec: "É permitido usar outra biblioteca para jogos, entretanto seu uso é de responsabilidade do grupo"). Raylib oferece janela gráfica de verdade, melhor pra um bullet hell que precisa renderizar várias dezenas de projéteis e inimigos com colisão circular precisa.
 
 ### Camera2D
 Estrutura do Raylib que **define um ponto de vista**. Tem `target` (o que ela aponta), `offset` (onde o target aparece na tela), `zoom` e `rotation`. A câmera segue o jogador atualizando `target = jogador.posicao` a cada frame.
@@ -245,6 +326,11 @@ A **área visível** da tela do jogo. Em AUGUR, é uma janela de 1280×720 pixel
 
 ## Procedural, física e geometria
 
+### Bioma
+**Tema visual + comportamental** de um pedaço do mundo. Floresta, deserto, caverna são biomas. Em jogos procedurais, o bioma define cor de fundo, tipos de obstáculo possíveis, paleta dos inimigos.
+
+**No projeto:** o GDD cita "bioma + obstáculos" como dado por seed. Hoje o jogo tem só um bioma genérico (grid escuro + obstáculos genéricos). Quando os obstáculos forem portados do sandbox, vão criar a sensação de bioma — árvores em densidade alta = floresta, pedras em densidade alta = caverna, etc.
+
 ### Big O / O(n²) / Complexidade
 Notação matemática pra estimar **quanto tempo um algoritmo leva conforme o tamanho da entrada cresce**. `O(n)` = roda 1 vez pra cada item. `O(n²)` = pra cada item, roda outra passada de N itens (loop dentro de loop) — fica caro rápido. `O(1)` = tempo fixo, não depende do N.
 
@@ -256,6 +342,11 @@ Por que importa em jogo: se um sistema é O(n²) e você tem 100 inimigos, são 
 Algo que produz **sempre o mesmo resultado** dado a mesma entrada. Oposto de aleatório de verdade.
 
 **No projeto:** a profecia é determinística a partir da seed. Mesma seed → mesmas 3 regras geradas, sempre. Permite replay e debug.
+
+### Hash de ponteiro / Pseudo-id
+Truque pra dar **identidade estável** a um objeto sem precisar de um campo `id` numérico explícito: pega o endereço do ponteiro (`uintptr_t`) e passa por uma função de hash (multiplicação por uma constante grande tipo a constante de Knuth `2654435761`). O resultado é um número que parece aleatório mas é **determinístico durante a vida daquele objeto** — perfeito pra "personalidade" estável (offsets, fases, cores variantes) sem inflar a struct.
+
+**No projeto:** `hash_pointer_para_unitario()` em `inimigos_tipos.c`. Usada em `ia_chase` pra gerar uma perturbação angular única por inimigo (ver "Perturbação angular"), evitando precisar adicionar campo `id` na struct `Inimigo`.
 
 ### Hitbox
 Ver **Hitbox** em [Combate, IA e entidades](#combate-ia-e-entidades).
@@ -286,6 +377,13 @@ Técnica de colisão: quando duas formas se sobrepõem, **empurra uma pra fora**
 ---
 
 ## Arquitetura e organização do código
+
+### Coordenação / IA coordenada vs IA isolada
+Numa **IA isolada**, cada inimigo decide o que fazer olhando só o jogador, sem se importar com os outros inimigos. Resultado: comportamento "burro em massa" — todos cumprem a mesma regra, todos vão pro mesmo ponto, todos viram fila indiana.
+
+Numa **IA coordenada**, cada inimigo lê (ou compartilha) o estado dos outros pra dividir tarefas. Custo: complexidade extra (precisa iterar a lista, pode ser O(N²)). Ganho: comportamento que parece inteligente — cercar, flanquear, formar parede.
+
+**No projeto:** a `ia_kiter` em `inimigos_tipos.c` é coordenada. Cada kiter olha a lista pra contar quantos kiters vivos existem (N) e qual é seu índice (k) por ordenação angular, daí ocupa um slot único num círculo orbital comum. A `ia_chase` ainda é isolada (cada melee só olha o jogador), mas tem perturbação angular pseudo-aleatória pra dispersar.
 
 ### Engine vs Conteúdo
 **Engine** = o motor do jogo: alocação de memória, loops, render genérico, dispatch de comportamentos. Não fala "fogo dá 18 de dano" — fala "leia o dano da tabela e aplique".
@@ -344,6 +442,18 @@ Um **teto** pra impedir que algo cresça sem controle. Importante em jogo pra pr
 Padrão onde o programa só pode estar em **um estado por vez** (menu, combate, pausa, ...) e existem regras claras pra trocar de um pro outro. Evita o spaghetti de "if dentro de if dentro de if".
 
 **No projeto:** o enum `EstadoAtual` em `tipos.h` lista todos os estados (`ESTADO_MENU`, `ESTADO_COMBATE`, `ESTADO_PAUSA`, `ESTADO_VITORIA`, etc.). O `switch` em `jogo_atualizar` é o dispatcher da FSM. As transições são sempre via `ej->proximo_estado = ...`.
+
+### Reset de estado / Reset de run
+Devolver o estado do jogo a um **ponto consistente conhecido**. Em roguelite, é o que acontece quando você começa uma nova run depois do game over: jogador na origem com vida cheia, inimigos limpos, timers zerados, listas liberadas. Sem reset adequado, sobras da run anterior contaminam a nova run (memória vazada, posições estranhas, vida negativa).
+
+**No projeto:** `jogo_resetar_run()` em `main.c`. Chamada no início de toda revelação de profecia (ponto único de "começou uma run nova"). Libera as listas encadeadas via `magias_liberar_tudo` / `inimigos_liberar_tudo`, chama `jogador_inicializar` pra resetar posição/vida, e reposiciona a câmera. **Não** mexe em meta-progressão (`salvamento`) nem em `tempo_total` (que é debug-only).
+
+### Variável estática (`static` dentro de função)
+Variável local declarada com `static` dentro de uma função. Diferente de uma local normal, ela **mantém o valor entre chamadas**: a função sai, volta a ser chamada e a variável continua de onde parou. É memória compartilhada por todas as invocações daquela função — útil pra acumuladores e timers internos quando você não quer adicionar campo na struct.
+
+**Cuidado:** se a função puder ser chamada por múltiplos "donos" simultaneamente (várias instâncias), a variável vira recurso compartilhado e pode dar bug.
+
+**No projeto:** `ia_boss_fases` em `inimigos_tipos.c` usa `static float timer_minions` pra acumular o tempo entre spawns de minions na fase final do chefão. Ok porque a engine garante no máximo 1 chefão por run (cronograma só spawna 1 e desativa todos os outros eventos quando ele entra).
 
 ### Lista encadeada (linked list)
 Estrutura de dados onde cada **nó tem um ponteiro pro próximo**. Diferente de array porque dá pra inserir e remover em O(1) sem realocar. Custo: percorrer é O(n) (não dá pra "pular pro item 50"). Ideal pra coisas que nascem e morrem o tempo todo.

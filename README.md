@@ -8,6 +8,8 @@ Em AUGUR, cada run começa com uma **Profecia** — três regras geradas procedu
 
 Cada run tem uma **seed** visível na tela. Como a profecia é gerada de forma determinística a partir da seed, você pode compartilhar runs marcantes com amigos: mesma seed = mesma profecia = mesmo puzzle inicial. É o ponto de partida pra replays, debug e desafios entre jogadores.
 
+> O design completo do jogo (loop principal, sistema de Profecias, Dados, magias, meta-progressão e cronograma de desenvolvimento) está no GDD: **`augur_gdd.pdf`**.
+
 ## Equipe
 
 | Dev | Responsabilidade | Módulos |
@@ -160,6 +162,10 @@ Em `magias_tipos.c`, ache a linha do elemento (ordem do enum) e ajuste dano, coo
 2. Em `inimigos_tipos.c`, crie uma função `static void ia_minha_ia(Inimigo *i, EstadoJogo *ej)` que escreve em `i->velocidade`.
 3. Adicione um `case` em `inimigos_tipos_executar_ia`.
 
+A função recebe `EstadoJogo *ej`, então tem acesso à lista inteira de inimigos via `ej->inimigos_cabeca` — isso permite **IAs coordenadas** (cada inimigo decide olhando o que os outros estão fazendo). Exemplo já no projeto: `ia_kiter` itera a lista pra contar quantos kiters vivos existem e descobrir seu índice ordenado por ângulo polar, daí cada um ocupa um slot único num círculo orbital cercando o jogador. Outras coordenações possíveis: cargas em V, parede defendendo o boss, divisão de flancos entre dois grupos. Custo: O(N²) por frame se cada inimigo iterar a lista — aceitável até umas dezenas de inimigos.
+
+Pra IAs **isoladas** com leve variedade entre indivíduos sem precisar de campo `id`: use `hash_pointer_para_unitario(i)` (já em `inimigos_tipos.c`) — devolve um valor estável em `[-1, 1]` derivado do endereço do nó, que serve de "personalidade" do inimigo (offset angular, fase de timer, jitter de velocidade).
+
 ## Convenções de código C
 
 ### Header (`.h`) é o "cartão de visita" do módulo
@@ -213,9 +219,11 @@ A struct raiz `EstadoJogo` (definida em `tipos.h`) carrega TODO o estado da run:
 
 | Conceito | Onde |
 |----------|------|
-| Structs | `tipos.h` — `Jogador`, `Inimigo`, `Profecia`, `EstadoJogo` |
-| Ponteiros | `EstadoJogo *` nas funções; `next` das listas |
-| Alocação dinâmica | `malloc`/`free` em `MagiaNo` e `InimigoNo` |
-| Listas encadeadas | `MagiaNo` e `InimigoNo` |
-| Matrizes | `mods[3]`, `escolhas_upgrade[3]`, `obstaculos[]`, tabelas de nomes |
-| Arquivo | `salvamento.c` — `saves/biomassa.dat` |
+| Structs | `tipos.h` — `Jogador`, `Inimigo`, `Magia`, `Profecia`, `Cronograma`, `EstadoJogo`, `DadosSalvos`, `Carta`, `Dado`, `Obstaculo`, `EventoCronograma`, `ParametrosInimigo`, `ParametrosMagia` |
+| Ponteiros | `EstadoJogo *ej` em quase toda função; `proxima`/`proximo` nos nós das listas; ponteiro duplo `InimigoNo **` na remoção de mortos em `inimigos.c` |
+| Alocação dinâmica | `malloc`/`free` em `MagiaNo` (`magias.c`) e `InimigoNo` (`inimigos.c`); `free` ao morrer o nó e `_liberar_tudo` ao encerrar a run |
+| Listas encadeadas | `MagiaNo` (projéteis) e `InimigoNo` (inimigos) — inserção na cabeça em O(1), remoção com ponteiro duplo |
+| Matrizes | `mods[3]` (profecia), `escolhas_upgrade[CARTAS_POR_ESCOLHA]`, `obstaculos[MAX_OBSTACULOS]`, `dados_ativos[MAX_DADOS_JOGADOR]`, `eventos[MAX_EVENTOS_CRONOGRAMA]` no cronograma; tabelas `PARAMETROS_INIMIGO[]`, `PARAMETROS_MAGIA[]`, `EVENTOS_CRONOGRAMA[]` |
+| Arquivo | `salvamento.c` — `saves/biomassa.dat` (biomassa total, runs completadas, profecias desbloqueadas). Top scores em `scores.dat` planejados pra entrega final. |
+
+> **Sobre a CLI-LIB.** O spec do PIF cita a [`cli-lib`](https://github.com/tgfb/cli-lib/) como biblioteca padrão sugerida (terminal-based). AUGUR optou por **Raylib** — também permitido pelo enunciado: "É permitido usar outra biblioteca para jogos, entretanto seu uso é de responsabilidade do grupo". A justificativa é técnica: bullet hell precisa renderizar dezenas de projéteis com colisão circular precisa, e câmera 2D rolando suavemente pelo mundo — coisas que ficam pesadas no terminal.
