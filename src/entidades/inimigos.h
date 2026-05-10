@@ -23,6 +23,12 @@
 
 #include "tipos.h"
 
+void inimigos_spawnar_em(
+    EstadoJogo *ej,
+    Vector2 pos,
+    TipoInimigo tipo
+);
+
 /* Move cada inimigo em direção ao jogador, remove os mortos. */
 void inimigos_atualizar(EstadoJogo *ej);
 

@@ -194,6 +194,36 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_SPACE)) {
         /* Prepara onda 1 (stub do Dev 3) */
         onda_inicializar(&ej->onda_atual, 1);
+
+        /*
+        inimigos_spawnar_em(
+        ej,
+        (Vector2){300, 0},
+        INIMIGO_CORPO_A_CORPO
+    );
+    
+    
+    inimigos_spawnar_em(
+        ej,
+        (Vector2){300, 0},
+        INIMIGO_A_DISTANCIA
+    );
+
+    
+    inimigos_spawnar_em(
+        ej,
+        (Vector2){300, 0},
+        INIMIGO_ELITE
+    );
+    
+    inimigos_spawnar_em(
+        ej,
+        (Vector2){300, 0},
+        INIMIGO_CHEFE
+    );
+    */
+    
+
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
