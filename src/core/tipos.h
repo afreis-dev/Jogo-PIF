@@ -150,7 +150,23 @@ typedef enum {
  * função modifique os campos.
  * ========================================================================== */
 
-/* -------------------- JOGADOR -------------------- */
+/* -------------------- JOGADOR --------------------
+ *
+ * NOTA PARA SOFIA (Dev 2):
+ *   Quando você for implementar `CARTA_DANO_UP` em cartas.c, vai precisar de
+ *   um campo persistente aqui que o sistema de magias da Luísa (Dev 3) lê ao
+ *   criar cada novo projétil. Sugestão:
+ *
+ *       int bonus_dano;   /\* somado no dano-base de toda magia disparada *\/
+ *
+ *   Lembretes:
+ *     1. Inicializar com 0 em `jogador_inicializar()` (src/entidades/jogador.c).
+ *     2. Combinar com a Luísa que ela some `ej->jogador.bonus_dano` no campo
+ *        `dano` da nova `Magia` no momento da criação (não modificar nós já
+ *        existentes na lista — eles são projéteis em voo).
+ *     3. NÃO adicionar agora — só quando for codar a carta. A struct é
+ *        contrato compartilhado; combine na reunião antes de mexer.
+ */
 typedef struct {
     Vector2 posicao;        /* x, y na tela. Vector2 é do Raylib. */
     Vector2 velocidade;     /* usado pra mover de forma suave */
