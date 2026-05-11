@@ -1,6 +1,6 @@
 # Tutorial: Configurando o Ambiente de Desenvolvimento
 
-Este guia cobre tudo que você precisa para compilar e rodar o projeto do zero: instalação do GCC, Make, pkg-config e raylib — tanto no **Windows** quanto no **Linux**.
+Este guia cobre tudo que você precisa pra compilar e rodar um projeto em C com **raylib** do zero: instalação do GCC, Make, pkg-config e raylib — tanto no **Windows** quanto no **Linux**. Os exemplos abaixo são genéricos: se aplicam a qualquer projeto que use a mesma stack.
 
 ---
 
@@ -23,7 +23,7 @@ Após instalar, o VS Code vai perguntar se você quer ativar — clique em **Act
 2. Digite: `File Icon Theme`
 3. Selecione **VSCode Icons**
 
-Pronto! Agora as pastas `src/`, `build/`, `assets/` e cada tipo de arquivo (`.c`, `.h`, `Makefile`, etc.) aparecem com ícones distintos no explorador lateral.
+Pronto! Agora cada tipo de arquivo (`.c`, `.h`, `Makefile`, etc.) aparece com ícone distinto no explorador lateral.
 
 ---
 
@@ -32,8 +32,8 @@ Pronto! Agora as pastas `src/`, `build/`, `assets/` e cada tipo de arquivo (`.c`
 1. [Windows — Instalação via MSYS2](#1-windows--instalação-via-msys2)
 2. [Linux — Instalação via apt](#2-linux--instalação-via-apt)
 3. [Verificando a instalação](#3-verificando-a-instalação)
-4. [Compilando o projeto](#4-compilando-o-projeto)
-5. [Entendendo o Makefile](#5-entendendo-o-makefile)
+4. [Compilando um projeto](#4-compilando-um-projeto)
+5. [Anatomia de um Makefile](#5-anatomia-de-um-makefile)
 6. [Como criar um Makefile do zero](#6-como-criar-um-makefile-do-zero)
 7. [Problemas comuns](#7-problemas-comuns)
 
@@ -52,9 +52,9 @@ No Windows, a forma mais simples de ter GCC + Make + raylib funcionando é pelo 
 
 ### Passo 2 — Abrir o terminal correto
 
-> ⚠️ Atenção: existem vários terminais MSYS2. Use sempre o **MSYS2 MINGW64** (ícone azul), não o UCRT64 nem o MSYS.
+> ⚠️ Atenção: existem vários terminais MSYS2. Use sempre o **MSYS2 UCRT64** (ícone roxo). Os outros (MINGW64, CLANG64, MSYS) usam runtimes diferentes e podem dar conflito.
 
-Procure no menu iniciar por **"MSYS2 MINGW64"** e abra-o.
+Procure no menu iniciar por **"MSYS2 UCRT64"** e abra-o.
 
 ### Passo 3 — Atualizar o sistema
 
@@ -73,7 +73,7 @@ pacman -Su
 ### Passo 4 — Instalar GCC, Make e pkg-config
 
 ```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-pkg-config
 ```
 
 Confirme com `Y` quando perguntado.
@@ -81,23 +81,23 @@ Confirme com `Y` quando perguntado.
 ### Passo 5 — Instalar o raylib
 
 ```bash
-pacman -S mingw-w64-x86_64-raylib
+pacman -S mingw-w64-ucrt-x86_64-raylib
 ```
 
 ### Passo 6 — Adicionar o MSYS2 ao PATH do Windows
 
-Para usar `gcc`, `make` e etc. no **CMD ou PowerShell** (fora do terminal MSYS2):
+Para usar `gcc`, `mingw32-make` e etc. no **CMD ou PowerShell** (fora do terminal MSYS2):
 
 1. Abra o **Painel de Controle** → Variáveis de Ambiente
    - Atalho: tecla Windows → pesquise "variáveis de ambiente" → clique em "Editar variáveis de ambiente do sistema"
 2. Em **Variáveis do sistema**, selecione `Path` e clique em **Editar**
 3. Clique em **Novo** e adicione:
    ```
-   C:\msys64\mingw64\bin
+   C:\msys64\ucrt64\bin
    ```
 4. Clique OK em tudo e **reinicie o terminal**
 
-> Após isso, `gcc`, `make` e `pkg-config` funcionarão no CMD/PowerShell/VS Code normalmente.
+> Após isso, `gcc`, `mingw32-make` e `pkg-config` funcionarão no CMD/PowerShell/VS Code normalmente. Repare que no UCRT64 o comando do Make é `mingw32-make`, não `make`.
 
 ---
 
@@ -155,43 +155,45 @@ Após instalar tudo, verifique se está funcionando:
 
 ```bash
 gcc --version
-# deve mostrar algo como: gcc (MINGW/GCC) 13.x.x
+# deve mostrar algo como: gcc (Rev1, Built by MSYS2 project) 14.x.x
 
+# Linux:
 make --version
-# deve mostrar: GNU Make 4.x
+# Windows (UCRT64):
+mingw32-make --version
+# qualquer um deve mostrar: GNU Make 4.x
 
 pkg-config --modversion raylib
-# deve mostrar a versão instalada do raylib, ex: 5.0
+# deve mostrar a versão instalada do raylib, ex: 5.5
 ```
 
 Se algum comando não for reconhecido, verifique se o PATH está correto.
 
 ---
 
-## 4. Compilando o projeto
+## 4. Compilando um projeto
 
 Com tudo instalado, entre na pasta do projeto e rode:
 
 ```bash
-# Compilar o projeto
+# Linux
 make
-
-# Compilar e já rodar
 make run
-
-# Limpar os arquivos de build
 make clean
+
+# Windows (UCRT64)
+mingw32-make
+mingw32-make run
+mingw32-make clean
 ```
 
-O executável gerado será:
-- **Windows**: `meu_jogo.exe`
-- **Linux**: `meu_jogo`
+O executável gerado fica na raiz do projeto, com `.exe` no Windows.
 
 ---
 
-## 5. Entendendo o Makefile
+## 5. Anatomia de um Makefile
 
-O Makefile do projeto já está pronto e configurado. Mas é bom entender o que cada parte faz:
+Um Makefile típico pra um projeto em C com raylib tem mais ou menos esta cara:
 
 ```makefile
 CC := gcc                      # compilador que será usado
@@ -200,8 +202,8 @@ PKG_CONFIG := pkg-config       # ferramenta para encontrar flags de bibliotecas
 # Descobre automaticamente todos os .c em src/ e subpastas
 FONTES := $(wildcard src/*.c) $(wildcard src/*/*.c)
 
-# Caminhos para os headers de cada módulo
-INCLUDES := -Isrc -Isrc/core -Isrc/entidades -Isrc/sistemas -Isrc/interface
+# Caminhos para os headers (exemplo genérico — adapte às pastas que você usar)
+INCLUDES := -Isrc
 
 # Converte lista de .c em lista de .o dentro da pasta build/
 OBJETOS := $(patsubst src/%.c,build/%.o,$(FONTES))
@@ -210,12 +212,15 @@ OBJETOS := $(patsubst src/%.c,build/%.o,$(FONTES))
 O bloco `ifeq ($(OS),Windows_NT)` detecta o sistema operacional automaticamente e ajusta:
 - O nome do executável (`.exe` no Windows)
 - As flags de link (`-lopengl32 -lgdi32 -lwinmm` no Windows vs. só `-lm` no Linux)
+- O comando pra rodar (`.\jogo.exe` no Windows vs. `./jogo` no Linux)
+
+A vantagem é que o mesmo Makefile compila no Windows e no Linux sem alterações.
 
 ---
 
 ## 6. Como criar um Makefile do zero
 
-Esta seção é um guia completo para quem **não tem nenhum Makefile** e quer criar um do zero para um projeto com raylib.
+Esta seção é um guia completo para quem **não tem nenhum Makefile** e quer criar um do zero para um projeto em C com raylib.
 
 ---
 
@@ -392,15 +397,15 @@ clean:
 
 ### Passo 6 — Projeto com múltiplos arquivos e pasta `src/`
 
-Quando o projeto cresce, você organiza em pastas. Suponha esta estrutura:
+Quando o projeto cresce, você organiza em pastas. Suponha esta estrutura genérica:
 
 ```
 meu_projeto/
 ├── Makefile
 ├── src/
 │   ├── main.c
-│   ├── jogador.c
-│   └── inimigo.c
+│   ├── modulo_a.c
+│   └── modulo_b.c
 └── build/        ← criada automaticamente pelo Make
 ```
 
@@ -457,14 +462,14 @@ clean:
 
 ### Passo 7 — Subpastas dentro de `src/`
 
-Se você organiza os módulos em subpastas (ex: `src/core/`, `src/entidades/`), basta expandir o wildcard e os includes:
+Se você organiza os módulos em subpastas (exemplo genérico: `src/modulo1/`, `src/modulo2/`), basta expandir o wildcard e os includes:
 
 ```makefile
 # Descobre .c em src/ e em qualquer subpasta direta
 FONTES := $(wildcard src/*.c) $(wildcard src/*/*.c)
 
 # Um -I para cada subpasta, para que #include "header.h" funcione
-INCLUDES := -Isrc -Isrc/core -Isrc/entidades
+INCLUDES := -Isrc -Isrc/modulo1 -Isrc/modulo2
 
 # Usa os includes nas flags
 CFLAGS := -Wall -Wextra -std=c11 -g $(INCLUDES) $(shell pkg-config --cflags raylib)
@@ -477,7 +482,7 @@ A regra de compilação cria automaticamente as subpastas dentro de `build/`:
 
 ```makefile
 build/%.o: src/%.c
-	mkdir -p $(dir $@)           # cria build/core/, build/entidades/, etc.
+	mkdir -p $(dir $@)           # cria build/modulo1/, build/modulo2/, etc.
 	$(CC) $(CFLAGS) -c $< -o $@
 ```
 
@@ -490,7 +495,7 @@ build/%.o: src/%.c
 | `$@` | Nome do **alvo** da regra atual |
 | `$<` | **Primeira** dependência |
 | `$^` | **Todas** as dependências |
-| `$(dir $@)` | Só o **diretório** do alvo (ex: `build/core/`) |
+| `$(dir $@)` | Só o **diretório** do alvo (ex: `build/modulo1/`) |
 | `$(wildcard padrão)` | Lista de arquivos que batem com o padrão |
 | `$(patsubst de,para,lista)` | Substitui padrão em cada item da lista |
 | `$(shell comando)` | Executa um comando shell e usa a saída |
@@ -520,7 +525,7 @@ build/%.o: src/%.c
 → Adicione as libs do Windows nas flags: `-lopengl32 -lgdi32 -lwinmm`
 
 **`make` não é reconhecido no Windows**
-→ O PATH do MSYS2 não foi adicionado corretamente. Refaça o Passo 6 da seção 1 e reinicie o terminal.
+→ O PATH do MSYS2 não foi adicionado corretamente. Refaça o Passo 6 da seção 1 e reinicie o terminal. Lembre que no UCRT64 o comando é `mingw32-make`, não `make`.
 
 **Jogo abre e fecha imediatamente**
-→ Rode pelo terminal (`make run`) para ver as mensagens de erro. Não dê duplo clique no `.exe`.
+→ Rode pelo terminal (`make run` ou `mingw32-make run`) para ver as mensagens de erro. Não dê duplo clique no `.exe`.

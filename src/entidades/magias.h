@@ -1,39 +1,43 @@
 /* ============================================================================
- * magias.h - INTERFACE DO MÓDULO DE MAGIAS/PROJÉTEIS
+ * magias.h - INTERFACE DA ENGINE DE MAGIAS/PROJÉTEIS
  * ============================================================================
  *
- * RESPONSABILIDADE: Dev 3 (Luísa)
+ * RESPONSABILIDADE: Arthur (Dev 1) — engine.
  *
- * Este módulo cuida de TUDO relacionado a magias e projéteis:
- *   - Disparar automaticamente em intervalos fixos (o jogador não aperta
- *     botão de ataque — as magias ficam rodando sozinhas).
- *   - Mover cada projétil da lista a cada frame.
- *   - Reduzir o tempo_de_vida do projétil e marcar como "viva = false"
- *     quando expirar.
- *   - Liberar (free) os nós da lista quando o jogo terminar.
+ * A engine cuida de:
+ *   - Lista encadeada de projéteis (alocação, remoção dos mortos, free total).
+ *   - Movimento e expiração (tempo_de_vida).
+ *   - Render circular usando a cor do elemento.
+ *   - Função pública magias_spawnar() pra criar um projétil — usada pela
+ *     lógica de auto-fire em src/entidades/magias_tipos.c.
  *
- * COMO ADICIONAR UM PROJÉTIL:
- *   1. Alocar um novo MagiaNo com malloc.
- *   2. Preencher os campos (posicao, velocidade, dano, etc.).
- *   3. Inserir na cabeça da lista: novo->proxima = ej->magias_cabeca;
- *                                   ej->magias_cabeca = novo;
+ * O CONTEÚDO (Luísa) vive em magias_tipos.c: tabela de stats por elemento
+ * e a regra de quando/onde disparar.
  *
- * O módulo colisao.c é quem marca "viva = false" quando acerta inimigo.
- * Este módulo remove da lista os projéteis com "viva = false".
- * ========================================================================== */
+ * O módulo colisao.c marca .viva = false quando o projétil acerta — o
+ * remover é responsabilidade desta engine.
+ * ============================================================================ */
 
 #ifndef MAGIAS_H
 #define MAGIAS_H
 
 #include "tipos.h"
 
-/* Atualiza todos os projéteis: move, reduz tempo_de_vida, remove mortos. */
+/* Auto-fire (chama magias_tipos) + movimento + expiração + remoção dos mortos. */
 void magias_atualizar(EstadoJogo *ej);
 
-/* Desenha cada projétil da lista na tela. */
+/* DrawCircleV pra cada projétil vivo. */
 void magias_desenhar(const EstadoJogo *ej);
 
-/* Libera (free) todos os nós da lista. Chamada no encerramento do jogo. */
+/* Libera todos os nós da lista. Chamada pelo main na finalização e quando
+ * uma run termina. */
 void magias_liberar_tudo(EstadoJogo *ej);
+
+/* Spawna um projétil de `elemento` em `posicao` se movendo na direção
+ * `direcao_normalizada`. Usa stats de PARAMETROS_MAGIA[elemento]. */
+void magias_spawnar(EstadoJogo *ej,
+                    Vector2     posicao,
+                    Vector2     direcao_normalizada,
+                    Elemento    elemento);
 
 #endif /* MAGIAS_H */

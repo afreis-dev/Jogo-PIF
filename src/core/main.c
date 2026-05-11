@@ -28,13 +28,13 @@
 #include "profecia.h"
 #include "colisao.h"
 
-/* Módulos que são STUBS por enquanto — Dev 2 e Dev 3 vão preencher.
- * O código compila e roda mesmo com stubs vazios porque os headers
- * declaram as funções e os .c implementam versões que não fazem nada. */
+/* Módulos restantes. Magias/inimigos/cronograma já têm engine pronta — Luísa
+ * preenche apenas as tabelas de tipos/eventos (inimigos_tipos.c, magias_tipos.c,
+ * cronograma_eventos.c). Dev 2 (Sofia) ainda popula cartas/dados/salvamento/hud. */
 #include "magias.h"
 #include "inimigos.h"
 #include "obstaculos.h"
-#include "onda.h"
+#include "cronograma.h"
 #include "cartas.h"
 #include "dados.h"
 #include "salvamento.h"
@@ -60,8 +60,16 @@ static void desenhar_grid_mundo(const Camera2D *camera);
 static void atualizar_menu(EstadoJogo *ej);
 static void atualizar_revelacao_profecia(EstadoJogo *ej);
 static void atualizar_combate(EstadoJogo *ej);
+static void atualizar_pausa(EstadoJogo *ej);
 static void atualizar_cartas_upgrade(EstadoJogo *ej);
 static void atualizar_game_over(EstadoJogo *ej);
+static void atualizar_vitoria(EstadoJogo *ej);
+
+/* Reset completo do estado da run. Chamada toda vez que uma nova run começa
+ * (depois da revelação da profecia). Garante que não sobra nada da run
+ * anterior — listas vazias, jogador na origem com vida cheia. Não toca em
+ * salvamento nem em tempo_total (esses são meta-progressão / debug). */
+static void jogo_resetar_run(EstadoJogo *ej);
 
 
 /* ============================================================================
@@ -71,6 +79,11 @@ int main(void) {
     /* 1. Inicialização do Raylib (abre a janela, prepara contexto gráfico) */
     InitWindow(LARGURA_TELA, ALTURA_TELA, "AUGUR - Projeto PIF CESAR");
     SetTargetFPS(FPS_ALVO);
+
+    /* Por padrão o Raylib fecha a janela ao apertar ESC. Como queremos usar
+     * ESC pra pausar/retomar o jogo, removemos esse atalho. O usuário ainda
+     * pode fechar pelo X da janela (WindowShouldClose continua respondendo). */
+    SetExitKey(KEY_NULL);
 
     /* Inicializa o gerador aleatório do sistema com o horário atual.
      * Sem isso, toda vez que o jogo abre, as seeds seriam iguais. */
@@ -126,7 +139,8 @@ static void jogo_inicializar(EstadoJogo *ej) {
     ej->camera.rotation = 0.0f;
     ej->camera.zoom     = 1.0f;
 
-    ej->modo_debug = false;
+    ej->modo_debug   = false;
+    ej->tiros_ativos = true;        /* Q desliga, Q liga */
 }
 
 
@@ -154,8 +168,10 @@ static void jogo_atualizar(EstadoJogo *ej) {
         case ESTADO_MENU:               atualizar_menu(ej);               break;
         case ESTADO_REVELACAO_PROFECIA: atualizar_revelacao_profecia(ej); break;
         case ESTADO_COMBATE:            atualizar_combate(ej);            break;
+        case ESTADO_PAUSA:              atualizar_pausa(ej);              break;
         case ESTADO_CARTAS_UPGRADE:     atualizar_cartas_upgrade(ej);     break;
         case ESTADO_GAME_OVER:          atualizar_game_over(ej);          break;
+        case ESTADO_VITORIA:            atualizar_vitoria(ej);            break;
         default: break;
     }
 
@@ -192,53 +208,90 @@ static void atualizar_menu(EstadoJogo *ej) {
  * começar o combate. */
 static void atualizar_revelacao_profecia(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_SPACE)) {
-        /* Prepara onda 1 (stub do Dev 3) */
-        onda_inicializar(&ej->onda_atual, 1);
+        /* Reseta o estado da run ANTES de iniciar a timeline. Em retries
+         * (game over → menu → nova run), sem isso o jogador continuaria com
+         * vida 0 e a lista de inimigos da run anterior — disparando game
+         * over no primeiro frame de combate. */
+        jogo_resetar_run(ej);
+        cronograma_inicializar(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
 
 /* --- Estado: COMBATE ------------------------------------------------------
- * O coração do jogo. Atualiza jogador, magias, inimigos, onda, colisões.
- * Se o jogador morrer, vai pra GAME_OVER. Se a onda acabar, vai pra
- * CARTAS_UPGRADE. */
+ * O coração do jogo. Atualiza jogador, magias, inimigos, cronograma e
+ * colisões. Transições possíveis:
+ *   - vida <= 0          → GAME_OVER
+ *   - cronograma.vitoria → VITORIA (matou o chefão)
+ *   - cartas pendentes   → CARTAS_UPGRADE (a cada minuto cheio)
+ * A ordem dos checks favorece a derrota (não dá pra "vencer" no mesmo
+ * frame em que o jogador morre). */
 static void atualizar_combate(EstadoJogo *ej) {
+    /* ESC pausa o combate. O early return evita que o resto do frame rode
+     * (jogador, magias, inimigos, cronograma) — o mundo congela na hora. */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->proximo_estado = ESTADO_PAUSA;
+        return;
+    }
+
+    /* Q liga/desliga o auto-fire. Tem efeito imediato no próximo tick de
+     * magias_atualizar, que checa ej->tiros_ativos antes de disparar. */
+    if (IsKeyPressed(KEY_Q)) {
+        ej->tiros_ativos = !ej->tiros_ativos;
+    }
+
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
 
     /* A câmera segue o jogador em tempo real. Como o offset é o centro da
      * tela, isso mantém o player sempre centralizado e o mundo rola em volta. */
     ej->camera.target = ej->jogador.posicao;
 
-    magias_atualizar(ej);               /* stub Dev 3 */
-    inimigos_atualizar(ej);             /* stub Dev 3 */
-    onda_atualizar(&ej->onda_atual, ej); /* stub Dev 3 */
+    magias_atualizar(ej);                              /* engine Arthur */
+    inimigos_atualizar(ej);                            /* engine Arthur */
+    cronograma_atualizar(&ej->cronograma, ej);         /* engine Arthur */
 
-    colisao_verificar_tudo(ej);         /* Dev 1 — implementado */
+    colisao_verificar_tudo(ej);                        /* engine Arthur */
 
     /* Obstáculos do mapa bloqueiam tanto o jogador quanto os inimigos.
      * Resolvidos APÓS colisao_verificar_tudo pra ter a palavra final — assim
      * inimigo não consegue empurrar o jogador pra dentro de uma árvore.
-     * Stubs do Dev 3 por enquanto. */
-    obstaculos_resolver_jogador(ej);    /* stub Dev 3 */
-    obstaculos_resolver_inimigos(ej);   /* stub Dev 3 */
+     * Stubs por enquanto (porte do sandbox em outra sessão). */
+    obstaculos_resolver_jogador(ej);
+    obstaculos_resolver_inimigos(ej);
 
     if (ej->jogador.vida <= 0) {
         ej->proximo_estado = ESTADO_GAME_OVER;
-    } else if (ej->onda_atual.completa) {
-        /* Onda acabou — Dev 2 sorteia cartas, vai pra tela de escolha */
+    } else if (ej->cronograma.vitoria) {
+        ej->proximo_estado = ESTADO_VITORIA;
+    } else if (cronograma_deve_abrir_cartas(&ej->cronograma)) {
         cartas_gerar_escolhas(ej);
         ej->proximo_estado = ESTADO_CARTAS_UPGRADE;
     }
 }
 
+/* --- Estado: PAUSA --------------------------------------------------------
+ * Mundo completamente congelado. ESC retoma o combate, ENTER volta pro menu
+ * (descarta a run). Cronograma, inimigos e magias nem rodam aqui — o switch
+ * em jogo_atualizar simplesmente não chama as funções deles. */
+static void atualizar_pausa(EstadoJogo *ej) {
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        ej->proximo_estado = ESTADO_COMBATE;
+    } else if (IsKeyPressed(KEY_ENTER)) {
+        /* Limpa as listas antes de voltar ao menu pra não vazar memória entre
+         * runs. A engine usa malloc/free, então isso é obrigatório. */
+        magias_liberar_tudo(ej);
+        inimigos_liberar_tudo(ej);
+        ej->proximo_estado = ESTADO_MENU;
+    }
+}
+
 /* --- Estado: CARTAS_UPGRADE ------------------------------------------------
- * Tela de escolha entre ondas. Dev 2 processa input de 1/2/3 pra escolher
- * carta. Depois vai de volta pro combate (próxima onda). */
+ * Tela de escolha disparada a cada minuto cheio do cronograma. O tempo da
+ * timeline NÃO avança enquanto este estado está ativo. Dev 2 processa input
+ * de 1/2/3 pra escolher carta. ESPAÇO continua pulando como placeholder. */
 static void atualizar_cartas_upgrade(EstadoJogo *ej) {
-    /* Placeholder: pula pra próxima onda apertando ESPAÇO.
-     * Dev 2 substitui por input real das cartas. */
     if (IsKeyPressed(KEY_SPACE)) {
-        onda_inicializar(&ej->onda_atual, ej->onda_atual.numero + 1);
+        cronograma_consumir_carta_pendente(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
@@ -247,7 +300,20 @@ static void atualizar_cartas_upgrade(EstadoJogo *ej) {
  * Mostra score, seed e espera input. */
 static void atualizar_game_over(EstadoJogo *ej) {
     if (IsKeyPressed(KEY_ENTER)) {
-        /* Volta pro menu. Poderia também salvar o score aqui (Dev 2). */
+        /* Libera as listas antes de voltar ao menu — simétrico com a saída
+         * pela pausa. O reset definitivo acontece em jogo_resetar_run() na
+         * próxima run, mas limpar aqui evita segurar memória entre telas. */
+        magias_liberar_tudo(ej);
+        inimigos_liberar_tudo(ej);
+        ej->proximo_estado = ESTADO_MENU;
+    }
+}
+
+/* --- Estado: VITORIA ------------------------------------------------------
+ * Tela curta após derrotar o chefão. ENTER volta pro menu. Tela detalhada
+ * (com biomassa total, recordes etc.) é polish pra outra sessão. */
+static void atualizar_vitoria(EstadoJogo *ej) {
+    if (IsKeyPressed(KEY_ENTER)) {
         ej->proximo_estado = ESTADO_MENU;
     }
 }
@@ -284,19 +350,41 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             break;
 
         case ESTADO_COMBATE:
+        case ESTADO_PAUSA:
             /* Tudo dentro de BeginMode2D é desenhado em COORD DE MUNDO:
              * a câmera aplica o offset automaticamente. Jogador, magias,
-             * inimigos e obstáculos vivem no mundo. */
+             * inimigos e obstáculos vivem no mundo.
+             *
+             * O case PAUSA reaproveita o render do COMBATE: o mundo continua
+             * desenhado (estado da última frame antes da pausa), e em cima
+             * pintamos o overlay no fim deste switch. */
             BeginMode2D(ej->camera);
                 desenhar_grid_mundo(&ej->camera);
-                obstaculos_desenhar(ej);  /* stub Dev 3 — mapa por baixo */
-                magias_desenhar(ej);      /* stub */
-                inimigos_desenhar(ej);    /* stub */
+                obstaculos_desenhar(ej);
+                magias_desenhar(ej);
+                inimigos_desenhar(ej);
                 jogador_desenhar(&ej->jogador);
             EndMode2D();
             /* HUD é coord de TELA (fixa, não rola com a câmera). */
-            desenhar_hud(ej);    /* stub */
+            desenhar_hud(ej);
 
+            /* Indicador do toggle de tiros: canto inferior esquerdo. ASCII
+             * porque a fonte default do Raylib não renderiza acento. */
+            DrawText(ej->tiros_ativos ? "[Q] Tiros: ON" : "[Q] Tiros: OFF",
+                     10, ALTURA_TELA - 28, 18,
+                     ej->tiros_ativos ? LIME : (Color){ 200, 100, 100, 255 });
+
+            /* Overlay de pausa: tinta translúcida + texto centralizado. */
+            if (ej->estado_atual == ESTADO_PAUSA) {
+                DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA,
+                              (Color){ 0, 0, 0, 160 });
+                DrawText("PAUSA",
+                         LARGURA_TELA/2 - 90, ALTURA_TELA/2 - 80, 60, GOLD);
+                DrawText("ESC para retomar",
+                         LARGURA_TELA/2 - 110, ALTURA_TELA/2 + 10, 22, WHITE);
+                DrawText("ENTER para voltar ao menu",
+                         LARGURA_TELA/2 - 170, ALTURA_TELA/2 + 50, 20, GRAY);
+            }
             break;
 
         case ESTADO_CARTAS_UPGRADE:
@@ -313,6 +401,22 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             snprintf(buffer, sizeof(buffer), "Seed da run: %u",
                      ej->profecia.seed);
             DrawText(buffer, LARGURA_TELA/2 - 100, 320, 22, WHITE);
+            DrawText("Pressione ENTER para voltar ao menu",
+                     LARGURA_TELA/2 - 230, 440, 20, GRAY);
+            break;
+        }
+
+        case ESTADO_VITORIA: {
+            DrawText("VITORIA", LARGURA_TELA/2 - 130, 180, 70, GOLD);
+            DrawText("Voce derrotou o chefao final!",
+                     LARGURA_TELA/2 - 200, 290, 22, WHITE);
+            char buffer[128];
+            int min = (int)(ej->cronograma.tempo_decorrido / 60.0f);
+            int seg = (int)ej->cronograma.tempo_decorrido % 60;
+            snprintf(buffer, sizeof(buffer),
+                     "Tempo: %02d:%02d   Seed: %u",
+                     min, seg, ej->profecia.seed);
+            DrawText(buffer, LARGURA_TELA/2 - 200, 340, 20, LIGHTGRAY);
             DrawText("Pressione ENTER para voltar ao menu",
                      LARGURA_TELA/2 - 230, 440, 20, GRAY);
             break;
@@ -337,6 +441,23 @@ static void jogo_finalizar(EstadoJogo *ej) {
     magias_liberar_tudo(ej);      /* stub — libera lista encadeada */
     inimigos_liberar_tudo(ej);    /* stub — libera lista encadeada */
     salvamento_salvar(&ej->salvamento);  /* stub — grava arquivo */
+}
+
+
+/* ============================================================================
+ * RESET DE RUN
+ * --------------------------------------------------------------------------
+ * Chamada em todo INÍCIO de run (depois da revelação da profecia). Devolve o
+ * estado a um ponto consistente: listas vazias, jogador na origem com vida
+ * cheia, câmera centrada no jogador. Não mexe em salvamento (meta), em
+ * tempo_total (debug) nem na profecia (já gerada antes).
+ * ========================================================================== */
+static void jogo_resetar_run(EstadoJogo *ej) {
+    magias_liberar_tudo(ej);
+    inimigos_liberar_tudo(ej);
+    jogador_inicializar(&ej->jogador);
+    ej->camera.target = ej->jogador.posicao;
+    ej->tiros_ativos  = true;
 }
 
 
