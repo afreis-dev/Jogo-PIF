@@ -93,8 +93,28 @@ void cartas_gerar_escolhas(EstadoJogo *ej) {
 
 
 void cartas_aplicar(EstadoJogo *ej, int indice_escolhido) {
-    (void)ej;
-    (void)indice_escolhido; 
+
+    if (indice_escolhido < 0 || indice_escolhido >= CARTAS_POR_ESCOLHA)
+        return;
+
+    Carta copia_local_carta = ej->escolhas_upgrade[indice_escolhido];
+
+
+    if (copia_local_carta.tipo == CARTA_DANO_UP) {
+        ej->jogador.bonus_dano += copia_local_carta.valor;
+
+    } else if (copia_local_carta.tipo == CARTA_VIDA_UP) {
+        ej->jogador.vida_maxima += copia_local_carta.valor;
+        ej->jogador.vida        += copia_local_carta.valor;
+
+    } else if (copia_local_carta.tipo == CARTA_VELOCIDADE_UP) {
+        ej->jogador.velocidade_movimento += (float)copia_local_carta.valor;
+
+    } else if (copia_local_carta.tipo == CARTA_MAIS_MAGIAS) {
+
+    } else if (copia_local_carta.tipo == CARTA_RECARGA_DADO) {
+        
+    }
 }
 
 void cartas_desenhar_ui(const EstadoJogo *ej) {

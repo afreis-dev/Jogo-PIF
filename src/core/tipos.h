@@ -147,7 +147,8 @@ typedef struct {
     int     vida;           /* HP atual */
     int     vida_maxima;    /* HP teto */
     float   velocidade_movimento;  /* pixels por segundo */
-    int     biomassa;       /* moeda da meta-progressão */
+    int     biomassa;  
+    int bonus_dano;     
 } Jogador;
 
 
