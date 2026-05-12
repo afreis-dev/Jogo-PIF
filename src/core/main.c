@@ -235,12 +235,16 @@ static void atualizar_combate(EstadoJogo *ej) {
  * Tela de escolha entre ondas. Dev 2 processa input de 1/2/3 pra escolher
  * carta. Depois vai de volta pro combate (próxima onda). */
 static void atualizar_cartas_upgrade(EstadoJogo *ej) {
-    /* Placeholder: pula pra próxima onda apertando ESPAÇO.
-     * Dev 2 substitui por input real das cartas. */
-    if (IsKeyPressed(KEY_SPACE)) {
-        onda_inicializar(&ej->onda_atual, ej->onda_atual.numero + 1);
-        ej->proximo_estado = ESTADO_COMBATE;
+    int escolha = -1;
+
+    if(IsKeyPressed(KEY_ONE)) escolha = 0;
+    if(IsKeyPressed(KEY_TWO)) escolha = 1;
+    if(IsKeyPressed(KEY_THREE)) escolha = 2; /*indide escolhido*/
+
+    if(escolha >= 0){
+        cartas_aplicar(ej, escolha);
     }
+    
 }
 
 /* --- Estado: GAME_OVER ----------------------------------------------------
