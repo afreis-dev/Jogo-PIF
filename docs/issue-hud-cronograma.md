@@ -2,24 +2,24 @@
 
 ## Contexto
 
-Na branch `feat/engine-cronograma-tipos`, o sistema de **ondas finitas** foi substituído por um **cronograma de 15 minutos** estilo Vampire Survivors:
+O sistema de **ondas finitas** foi substituído por um **cronograma de 5 minutos** estilo Vampire Survivors:
 
 - A struct `Onda` foi removida do `tipos.h`.
 - Em `EstadoJogo`, o campo `onda_atual` virou `cronograma` (do tipo `Cronograma`).
-- A run inteira é uma timeline contínua. Aos 15:00 surge o chefão; matá-lo encerra com vitória.
+- A run inteira é uma timeline contínua. Aos 5:00 surge o chefão; matá-lo encerra com vitória.
 - A cada minuto cheio (1:00, 2:00, ...), a tela de cartas abre automaticamente.
 
-Pra evitar quebrar a build, eu (Arthur) deixei um **stopgap de uma linha** em `hud.c` — a função `hud_desenhar_onda()` agora mostra `MM:SS / 15:00` em vez de `Onda N`. Funcional, mas sem polish.
+Pra evitar quebrar a build, eu (Arthur) deixei um **stopgap de uma linha** em `src/interface/hud.c` — a função `hud_desenhar_onda()` mostra `MM:SS / 05:00` em vez de `Onda N`. Funcional, mas sem polish.
 
 ## O que precisa virar no HUD
 
 A ideia é deixar o HUD mais alinhado com a fantasia VS-like:
 
-1. **Tempo grande no topo**, formato `MM:SS / 15:00`. Já está no stopgap, mas pode ganhar fonte maior, brilho, tipografia.
+1. **Tempo grande no topo**, formato `MM:SS / 05:00`. Já está no stopgap, mas pode ganhar fonte maior, brilho, tipografia.
 2. **Cor mudando conforme o tempo se aproxima do chefão**:
-   - 0:00 → 10:00: branco/dourado (calmo).
-   - 10:00 → 14:00: amarelo (tensão crescendo).
-   - 14:00 → 15:00: vermelho pulsando (rush final).
+   - 0:00 → 3:00: branco/dourado (calmo).
+   - 3:00 → 4:00: amarelo (tensão crescendo).
+   - 4:00 → 5:00: vermelho pulsando (rush final).
 3. **Contagem regressiva pro chefão** (opcional, mas legal): nos últimos 30 segundos, um texto extra `CHEFAO EM XX` aparece em destaque.
 4. **Indicador de "minuto atual"**: pode ser uma barrinha de progresso entre minutos cheios — visualiza quando a próxima carta vai sair.
 
@@ -41,7 +41,7 @@ typedef struct {
 } Cronograma;
 ```
 
-E a constante `CRONOGRAMA_DURACAO_SEG` (= 900s) está em `src/sistemas/cronograma.h`.
+E a constante `CRONOGRAMA_DURACAO_SEG` (= 300s, ou seja 5 min) está em `src/sistemas/cronograma.h`.
 
 ## Snippet pronto pra começar
 
@@ -60,10 +60,10 @@ void hud_desenhar_onda(const EstadoJogo *ej) {
 
     Color cor = GOLD;
     if (t >= CRONOGRAMA_DURACAO_SEG - 60.0f) {
-        // último minuto: vermelho pulsante
+        // último minuto (4:00 → 5:00): vermelho pulsante
         cor = ((int)(t * 4) % 2) ? RED : MAROON;
-    } else if (t >= CRONOGRAMA_DURACAO_SEG - 5.0f * 60.0f) {
-        cor = YELLOW;
+    } else if (t >= CRONOGRAMA_DURACAO_SEG - 2.0f * 60.0f) {
+        cor = YELLOW;   // penúltimo minuto (3:00 → 4:00)
     }
 
     DrawText(buf, LARGURA_TELA / 2 - 90, HUD_MARGEM,
@@ -88,13 +88,13 @@ A fonte default do Raylib é ASCII puro. Mantenha "CHEFAO" em vez de "CHEFÃO" d
 
 ## Quando estiver pronto
 
-Faça uma branch a partir de `main` (depois que `feat/engine-cronograma-tipos` for merge):
+A engine de cronograma (5 min) já está na `main`. Faça uma branch a partir dela:
 
 ```bash
 git checkout main
 git pull
 git checkout -b feat/hud-cronograma
-# editar hud.c e hud.h se precisar
+# editar src/interface/hud.c e hud.h se precisar
 git commit -m "feat(hud): exibe tempo da timeline e contagem regressiva pro chefao"
 git push -u origin feat/hud-cronograma
 ```
