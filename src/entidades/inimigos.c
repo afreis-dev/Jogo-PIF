@@ -23,6 +23,9 @@
 
 #include "inimigos.h"
 #include "inimigos_tipos.h"
+#include "projeteis_inimigo.h"
+#include "projeteis_inimigo_tipos.h"
+#include "profecia.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -56,20 +59,142 @@ void inimigos_spawnar_em(EstadoJogo *ej, Vector2 posicao, TipoInimigo tipo) {
     novo->dados.recompensa_biomassa  = p->recompensa_biomassa;
     novo->dados.vivo                 = true;
 
+    /* Campos de status: inimigos_spawnar_em atribui campo a campo (não usa
+     * {0}), então TODO campo novo precisa ser zerado explicitamente aqui. */
+    novo->dados.congelado_tempo           = 0.0f;
+    novo->dados.veneno_tempo              = 0.0f;
+    novo->dados.veneno_dps                = 0.0f;
+    novo->dados.veneno_stacks             = 0;
+    novo->dados.veneno_acumulado          = 0.0f;
+    novo->dados.marca_termica_tempo       = 0.0f;
+    novo->dados.proxima_hit_multiplicador = 1.0f;
+    novo->dados.aliado                    = false;
+    novo->dados.vida_aliado_restante      = 0.0f;
+    novo->dados.timer_disparo             = 0.0f;
+
     novo->proximo            = ej->inimigos_cabeca;
     ej->inimigos_cabeca      = novo;
+}
+
+
+/* Caminho único de morte. Idempotente: se já está morto, não credita de
+ * novo (evita biomassa dobrada quando DoT e projétil matam no mesmo frame).
+ * O free real fica no PASS 3 de inimigos_atualizar. Aliados (spawnados por
+ * profecia) não dão recompensa — são removidos direto, sem passar por aqui. */
+void inimigos_registrar_morte(EstadoJogo *ej, Inimigo *i) {
+    if (i == NULL || !i->vivo) return;
+    i->vivo = false;
+    ej->jogador.biomassa += i->recompensa_biomassa;
+    /* Caminho único de morte alimenta o motor de profecia (combo, Ao matar).
+     * O guard de reentrância em profecia_aplicar_efeito impede recursão se
+     * o efeito disparado também matar (explosão em cadeia). */
+    profecia_evento_ao_matar(ej, i);
+}
+
+
+void inimigos_spawnar_aliado(EstadoJogo *ej, Vector2 pos,
+                             float vida_frac, float duracao) {
+    InimigoNo *antes = ej->inimigos_cabeca;
+    inimigos_spawnar_em(ej, pos, INIMIGO_CORPO_A_CORPO);
+    if (ej->inimigos_cabeca == antes) return;   /* lista cheia: spawn falhou */
+
+    Inimigo *d = &ej->inimigos_cabeca->dados;   /* spawnar_em insere na cabeça */
+    d->aliado               = true;
+    d->vida_aliado_restante = (duracao > 0.0f) ? duracao : 0.01f;
+
+    int nova = (int)((float)d->vida_maxima * vida_frac);
+    if (nova < 1) nova = 1;
+    d->vida        = nova;
+    d->vida_maxima = nova;
 }
 
 
 void inimigos_atualizar(EstadoJogo *ej) {
     float dt = ej->delta_tempo;
 
-    /* ----- PASS 1: IA + movimento ----- */
+    /* ----- PASS 1: status + IA + movimento ----- */
     for (InimigoNo *ino = ej->inimigos_cabeca; ino != NULL; ino = ino->proximo) {
         if (!ino->dados.vivo) continue;
-        inimigos_tipos_executar_ia(&ino->dados, ej);
-        ino->dados.posicao.x += ino->dados.velocidade.x * dt;
-        ino->dados.posicao.y += ino->dados.velocidade.y * dt;
+        Inimigo *d = &ino->dados;
+
+        /* Timers de status expiram. */
+        if (d->congelado_tempo > 0.0f) {
+            d->congelado_tempo -= dt;
+            if (d->congelado_tempo < 0.0f) d->congelado_tempo = 0.0f;
+        }
+        if (d->marca_termica_tempo > 0.0f) {
+            d->marca_termica_tempo -= dt;
+            if (d->marca_termica_tempo < 0.0f) d->marca_termica_tempo = 0.0f;
+        }
+
+        /* DoT do veneno: acumulador float evita truncar pra 0 com int vida. */
+        if (d->veneno_tempo > 0.0f) {
+            d->veneno_tempo -= dt;
+            d->veneno_acumulado += d->veneno_dps * dt;
+            int aplicar = (int)d->veneno_acumulado;
+            if (aplicar > 0) {
+                d->vida -= aplicar;
+                d->veneno_acumulado -= (float)aplicar;
+            }
+            if (d->veneno_tempo <= 0.0f) {
+                d->veneno_tempo = 0.0f;
+                d->veneno_dps = 0.0f;
+                d->veneno_stacks = 0;
+                d->veneno_acumulado = 0.0f;
+            }
+            if (d->vida <= 0) {
+                inimigos_registrar_morte(ej, d);   /* DoT credita biomassa */
+                continue;
+            }
+        }
+
+        /* Aliado temporário (EF_SPAWNA_ALIADO) expira sem recompensa. */
+        if (d->vida_aliado_restante > 0.0f) {
+            d->vida_aliado_restante -= dt;
+            if (d->vida_aliado_restante <= 0.0f) {
+                d->vivo = false;   /* direto: aliado não vale pontuação */
+                continue;
+            }
+        }
+
+        inimigos_tipos_executar_ia(d, ej);
+
+        /* Congelado: a IA já escreveu velocidade; zeramos antes de integrar. */
+        if (d->congelado_tempo > 0.0f) {
+            d->velocidade.x = 0.0f;
+            d->velocidade.y = 0.0f;
+        }
+
+        d->posicao.x += d->velocidade.x * dt;
+        d->posicao.y += d->velocidade.y * dt;
+    }
+
+    /* ----- PASS 1.5: disparo de projétil -----
+     * Mecânica 100% engine; o QUE/QUANTO vem da tabela tunável da Luísa
+     * (projeteis_inimigo_tipos.c). A IA dela (ia_kiter) fica intocada — só
+     * mantém distância; o tiro acontece aqui. Inimigo congelado ou aliado
+     * não atira; só dispara com o jogador dentro do alcance. */
+    for (InimigoNo *ino = ej->inimigos_cabeca; ino != NULL; ino = ino->proximo) {
+        Inimigo *d = &ino->dados;
+        if (!d->vivo || d->aliado || d->congelado_tempo > 0.0f) continue;
+        if ((int)d->tipo < 0 ||
+            (int)d->tipo >= QTD_PARAMETROS_PROJETIL_INIMIGO) continue;
+
+        const ParametrosProjetilInimigo *pp =
+            &PARAMETROS_PROJETIL_INIMIGO[d->tipo];
+        if (!pp->pode_atirar) continue;
+
+        float dx = ej->jogador.posicao.x - d->posicao.x;
+        float dy = ej->jogador.posicao.y - d->posicao.y;
+        float dist = sqrtf(dx * dx + dy * dy);
+        if (dist > pp->alcance_disparo || dist < 0.0001f) continue;
+
+        d->timer_disparo -= dt;
+        if (d->timer_disparo <= 0.0f) {
+            Vector2 dir = { dx / dist, dy / dist };
+            projeteis_inimigo_spawnar(ej, d->posicao, dir, d->tipo);
+            d->timer_disparo = pp->cooldown_disparo;
+        }
     }
 
     /* ----- PASS 2: push-out inimigo↔inimigo (O(n²)) -----
