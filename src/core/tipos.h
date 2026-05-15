@@ -52,11 +52,22 @@
 typedef enum {
     ESTADO_MENU,                /* tela inicial */
     ESTADO_REVELACAO_PROFECIA,  /* mostra os 3 modificadores sorteados */
-    ESTADO_COMBATE,             /* wave rolando, inimigos spawnando */
-    ESTADO_CARTAS_UPGRADE,      /* entre ondas: jogador escolhe upgrade */
+    ESTADO_COMBATE,             /* timeline rolando, inimigos spawnando */
+    ESTADO_PAUSA,               /* ESC durante o combate; mundo congelado */
+    ESTADO_CARTAS_UPGRADE,      /* a cada minuto: jogador escolhe upgrade */
     ESTADO_GAME_OVER,           /* morreu, mostra score e seed */
+    ESTADO_VITORIA,             /* matou o chefão final aos 15:00 */
     ESTADO_SAIR                 /* sinaliza main pra fechar a janela */
 } EstadoAtual;
+
+/* Comportamento de IA de um inimigo.
+ * Cada valor mapeia 1:1 a uma função em inimigos_tipos.c (a Luísa adiciona
+ * casos novos no dispatch quando quiser uma IA inédita). */
+typedef enum {
+    IA_CHASE,                   /* anda direto na direção do jogador */
+    IA_KITER,                   /* mantém distância e atira projéteis */
+    IA_BOSS_FASES               /* chefão com fases por % de vida */
+} ComportamentoIA;
 
 /* 6 elementos do jogo. Ordem importa: é usada pra indexar tabelas de nomes.
  * ELEMENTO_TOTAL no final é truque comum: vira a contagem automaticamente. */
@@ -139,7 +150,10 @@ typedef enum {
  * função modifique os campos.
  * ========================================================================== */
 
-/* -------------------- JOGADOR -------------------- */
+/* -------------------- JOGADOR --------------------
+ * `bonus_dano` é somado ao dano-base de toda magia no momento da criação do
+ * projétil (a Luísa lê este campo em magias) — nunca itere a lista de
+ * projéteis em voo pra aplicar bônus, eles morrem e o bônus se perde. */
 typedef struct {
     Vector2 posicao;        /* x, y na tela. Vector2 é do Raylib. */
     Vector2 velocidade;     /* usado pra mover de forma suave */
@@ -147,8 +161,8 @@ typedef struct {
     int     vida;           /* HP atual */
     int     vida_maxima;    /* HP teto */
     float   velocidade_movimento;  /* pixels por segundo */
-    int     biomassa;  
-    int bonus_dano;     
+    int     biomassa;       /* moeda da meta-progressão */
+    int     bonus_dano;     /* somado no dano-base de toda magia disparada */
 } Jogador;
 
 
@@ -166,6 +180,7 @@ typedef struct {
     Vector2  velocidade;    /* direção e velocidade do projétil */
     float    dano;
     float    tempo_de_vida; /* em segundos; projétil some quando chega a 0 */
+    float    raio;          /* raio de colisão (preenchido a partir do elemento) */
     Elemento elemento;
     bool     viva;          /* se false, será removida no próximo frame */
 } Magia;
@@ -199,18 +214,77 @@ typedef struct InimigoNo {
 } InimigoNo;
 
 
-/* -------------------- ONDA (WAVE) --------------------
- * Uma onda é um grupo de inimigos que spawnam por X segundos.
- * Dev 3 implementa a lógica de spawn e escala de dificuldade.
- * ---------------------------------------------------- */
+/* -------------------- TABELAS DE PARÂMETROS (DEV 3) --------------------
+ * Estas duas structs são usadas em tabelas const indexadas por TipoInimigo
+ * e Elemento, respectivamente. A Luísa preenche essas tabelas em
+ * inimigos_tipos.c e magias_tipos.c — é o ponto único onde stats vivem.
+ *
+ * Quem usa: a engine (inimigos.c, magias.c) lê desses arrays na hora de
+ * spawnar, mover, desenhar e disparar. Mudou um valor na tabela? Próximo
+ * spawn já pega o novo. Ideal pra balanceamento.
+ * ----------------------------------------------------------------------- */
 typedef struct {
-    int   numero;                 /* 1, 2, 3... fica mais difícil a cada número */
-    int   inimigos_para_spawnar;  /* total previsto pra essa onda */
-    int   inimigos_restantes;     /* quantos ainda faltam spawnar */
-    float tempo_entre_spawns;     /* em segundos */
-    float timer_spawn;            /* acumulador interno */
-    bool  completa;               /* true = onda acabou, ir pra tela de cartas */
-} Onda;
+    int             vida_base;
+    float           dano;
+    float           velocidade_movimento;
+    float           raio;                /* colisão */
+    float           raio_visual;         /* desenho (pode != colisão) */
+    Color           cor;
+    int             recompensa_biomassa;
+    ComportamentoIA comportamento;
+} ParametrosInimigo;
+
+typedef struct {
+    float dano_base;
+    float velocidade_projetil;
+    float tempo_de_vida;
+    float raio_projetil;
+    float intervalo_disparo;             /* segundos entre disparos automáticos */
+    Color cor;
+} ParametrosMagia;
+
+
+/* -------------------- TIMELINE (CRONOGRAMA + EVENTOS) --------------------
+ * O jogo NÃO tem "ondas finitas" no estilo arena clássico. A run inteira é
+ * uma timeline contínua de 15 minutos, modelada à la Vampire Survivors:
+ *
+ *   - O Cronograma guarda o tempo total decorrido desde o início da run.
+ *   - A tabela EVENTOS_CRONOGRAMA[] (em src/sistemas/cronograma_eventos.c)
+ *     descreve, declarativamente, "do minuto X ao minuto Y, spawnar inimigos
+ *     do tipo T a cada Z segundos". Múltiplos eventos podem estar ativos
+ *     ao mesmo tempo (e.g., melee + ranged simultâneos a partir dos 2:00).
+ *   - Aos 15:00, a engine spawna 1 chefão e para os outros eventos. Quando
+ *     o chefão morre, o jogo transiciona pra ESTADO_VITORIA.
+ *   - A cada minuto inteiro (1:00, 2:00, …), a tela de cartas abre e o
+ *     tempo congela; o jogador escolhe um upgrade e a run continua.
+ *
+ * A Luísa edita SÓ a tabela EVENTOS_CRONOGRAMA[]. A engine cuida do resto.
+ * ----------------------------------------------------------------------- */
+
+/* Um evento agendado: "do tempo_inicio ao tempo_fim, spawnar tipo a cada X
+ * segundos". A engine faz uma cópia interna ANTES de mexer em timer_interno
+ * e ativo, então a tabela declarativa em cronograma_eventos.c pode ser const. */
+typedef struct {
+    float        tempo_inicio_seg;   /* quando o evento começa a spawnar */
+    float        tempo_fim_seg;      /* quando para; INFINITY = nunca */
+    TipoInimigo  tipo;               /* qual inimigo é spawnado */
+    float        intervalo_spawn;    /* segundos entre cada spawn */
+    float        timer_interno;      /* acumulador (gerenciado pela engine) */
+    bool         ativo;              /* engine liga/desliga conforme o tempo */
+} EventoCronograma;
+
+#define MAX_EVENTOS_CRONOGRAMA 32    /* teto de eventos copiados pra runtime */
+
+typedef struct {
+    float            tempo_decorrido;        /* segundos desde o início da run */
+    float            tempo_proxima_carta;    /* dispara cartas neste valor */
+    bool             cartas_pendentes;       /* engine setou, main consome */
+    bool             chefao_spawnado;        /* já criou o chefão final? */
+    bool             esperando_chefao_morrer;
+    bool             vitoria;                /* chefão derrotado */
+    EventoCronograma eventos[MAX_EVENTOS_CRONOGRAMA];
+    int              qtd_eventos;
+} Cronograma;
 
 
 /* -------------------- PROFECIA (O CORAÇÃO DO JOGO) --------------------
@@ -303,9 +377,9 @@ typedef struct {
     EstadoAtual proximo_estado;   /* buffer de transição pra trocar entre frames */
 
     /* --- Entidades principais --- */
-    Jogador   jogador;
-    Profecia  profecia;
-    Onda      onda_atual;
+    Jogador     jogador;
+    Profecia    profecia;
+    Cronograma  cronograma;          /* timeline da run (substituiu Onda) */
     DadosSalvos salvamento;
 
     /* --- Camera 2D ---
@@ -342,6 +416,9 @@ typedef struct {
 
     /* --- Debug --- */
     bool      modo_debug;         /* F1 alterna; mostra FPS e info extra */
+
+    /* --- Toggles do jogador durante o combate --- */
+    bool      tiros_ativos;       /* Q alterna; quando false, auto-fire pausa */
 } EstadoJogo;
 
 #endif /* TIPOS_H */

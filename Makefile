@@ -27,20 +27,29 @@ OBJETOS := $(patsubst src/%.c,build/%.o,$(FONTES))
 
 ifeq ($(OS),Windows_NT)
     EXECUTAVEL := augur.exe
-    COMANDO_EXECUTAR := .\augur.exe
     CFLAGS := -Wall -Wextra -std=c11 -g $(INCLUDES) $(shell $(PKG_CONFIG) --cflags raylib)
     LDFLAGS := $(shell $(PKG_CONFIG) --libs raylib) -lopengl32 -lgdi32 -lwinmm -lm
-    define CRIAR_PASTA
-        if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
-    endef
+
+    # No terminal MSYS2/Git Bash, MSYSTEM vem definido e os comandos sao POSIX.
+    # Fora dele, usamos cmd.exe para o PowerShell/CMD nao depender do /usr/bin.
+    ifneq ($(strip $(MSYSTEM)),)
+        COMANDO_EXECUTAR := ./$(EXECUTAVEL)
+        CRIAR_PASTA = mkdir -p "$(1)"
+        REMOVER_GERADOS := rm -rf build augur augur.exe
+    else
+        SHELL := cmd.exe
+        .SHELLFLAGS := /C
+        COMANDO_EXECUTAR := .\$(EXECUTAVEL)
+        CRIAR_PASTA = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
+        REMOVER_GERADOS := if exist build rmdir /S /Q build & if exist augur.exe del /Q augur.exe & if exist augur del /Q augur
+    endif
 else
     EXECUTAVEL := augur
     COMANDO_EXECUTAR := ./augur
     CFLAGS := -Wall -Wextra -std=c11 -g $(INCLUDES) $(shell $(PKG_CONFIG) --cflags raylib)
     LDFLAGS := $(shell $(PKG_CONFIG) --libs raylib) -lm
-    define CRIAR_PASTA
-        mkdir -p $(1)
-    endef
+    CRIAR_PASTA = mkdir -p "$(1)"
+    REMOVER_GERADOS := rm -rf build augur augur.exe
 endif
 
 .PHONY: all run executar clean limpar
@@ -49,9 +58,7 @@ all: $(EXECUTAVEL)
 
 $(EXECUTAVEL): $(OBJETOS)
 	$(CC) $(OBJETOS) -o $@ $(LDFLAGS)
-	@echo.
 	@echo Base compilada com sucesso.
-	@echo.
 
 build/%.o: src/%.c
 	@$(call CRIAR_PASTA,$(dir $@))
@@ -63,12 +70,6 @@ run: $(EXECUTAVEL)
 executar: run
 
 clean:
-ifeq ($(OS),Windows_NT)
-	@if exist build rmdir /S /Q build
-	@if exist augur.exe del /Q augur.exe
-	@if exist augur del /Q augur
-else
-	rm -rf build augur augur.exe
-endif
+	@$(REMOVER_GERADOS)
 
 limpar: clean

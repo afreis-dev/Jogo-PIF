@@ -93,12 +93,13 @@ void cartas_gerar_escolhas(EstadoJogo *ej) {
 
 
 void cartas_aplicar(EstadoJogo *ej, int indice_escolhido) {
-
+    /* Aplica o efeito da carta escolhida no jogador. CARTA_MAIS_MAGIAS e
+     * CARTA_RECARGA_DADO ficam sem efeito até o contrato com o sistema de
+     * magias (Dev 3) e a semântica de "carga" do Dado serem definidos. */
     if (indice_escolhido < 0 || indice_escolhido >= CARTAS_POR_ESCOLHA)
         return;
 
     Carta copia_local_carta = ej->escolhas_upgrade[indice_escolhido];
-
 
     if (copia_local_carta.tipo == CARTA_DANO_UP) {
         ej->jogador.bonus_dano += copia_local_carta.valor;
@@ -113,10 +114,13 @@ void cartas_aplicar(EstadoJogo *ej, int indice_escolhido) {
     } else if (copia_local_carta.tipo == CARTA_MAIS_MAGIAS) {
 
     } else if (copia_local_carta.tipo == CARTA_RECARGA_DADO) {
-        
+
     }
 }
 
+/* Os três blocos de borda por raridade são copy-paste (só muda o índice da
+ * carta e o x); dá pra colapsar num loop com array de cores no futuro. As
+ * strings de DrawText ficam SEM acento (fonte default da Raylib é ASCII). */
 void cartas_desenhar_ui(const EstadoJogo *ej) {
 
     if(ej->escolhas_upgrade[0].raridade == 0){
@@ -178,10 +182,8 @@ void cartas_desenhar_ui(const EstadoJogo *ej) {
     else if(ej->escolhas_upgrade[2].raridade == 4){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, RED);
     }
-    if(ej->escolhas_upgrade[2].raridade == 5){
+    else if(ej->escolhas_upgrade[2].raridade == 5){
         DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) - 2 , (INICIO_CARTA_Y) - 2, LARGURA_CARTA + 4, ALTURA_CARTA + 4, GOLD);
     }
     DrawRectangle(INICIO_CARTA_X + (GAP_CARTAS * 2) , (INICIO_CARTA_Y), LARGURA_CARTA, ALTURA_CARTA, BLACK);
-
-    (void)ej; 
 }

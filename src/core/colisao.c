@@ -117,9 +117,9 @@ void colisao_verificar_tudo(EstadoJogo *ej) {
 
             if (!ino->dados.vivo) continue;
 
-            /* Raio do projétil é fixo em 6 pixels por enquanto.
-             * Dev 3 pode mudar isso adicionando "raio" na struct Magia. */
-            if (colisao_circulo_circulo(mno->dados.posicao, 6.0f,
+            /* Raio do projétil vem da struct Magia, preenchido pela engine
+             * (magias.c) a partir de PARAMETROS_MAGIA[elemento].raio_projetil. */
+            if (colisao_circulo_circulo(mno->dados.posicao, mno->dados.raio,
                                          ino->dados.posicao, ino->dados.raio)) {
                 ino->dados.vida -= (int)mno->dados.dano;
                 mno->dados.viva = false;    /* projétil some no hit */
