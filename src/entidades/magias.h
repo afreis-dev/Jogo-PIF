@@ -40,4 +40,9 @@ void magias_spawnar(EstadoJogo *ej,
                     Vector2     direcao_normalizada,
                     Elemento    elemento);
 
+/* Mira no inimigo mais próximo e dispara `elemento` (engine de mira própria).
+ * Usada pelo auto-fire (magias_tipos.c) — itera os 3 mods da profecia.
+ * Retorna false se não havia alvo (nada foi disparado). */
+bool magias_disparar_elemento(EstadoJogo *ej, Elemento elemento);
+
 #endif /* MAGIAS_H */

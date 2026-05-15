@@ -11,7 +11,9 @@
 
 #include "magias.h"
 #include "magias_tipos.h"
+#include "magias_comportamento.h"
 #include <stdlib.h>
+#include <math.h>
 
 
 /* Conta nós da lista pra respeitar MAX_PROJETEIS. */
@@ -34,17 +36,74 @@ void magias_spawnar(EstadoJogo *ej,
 
     const ParametrosMagia *p = &PARAMETROS_MAGIA[elemento];
 
-    novo->dados.posicao       = posicao;
-    novo->dados.velocidade.x  = direcao_normalizada.x * p->velocidade_projetil;
-    novo->dados.velocidade.y  = direcao_normalizada.y * p->velocidade_projetil;
-    novo->dados.dano          = p->dano_base;
-    novo->dados.tempo_de_vida = p->tempo_de_vida;
-    novo->dados.raio          = p->raio_projetil;
-    novo->dados.elemento      = elemento;
-    novo->dados.viva          = true;
+    /* saltos de chain (Relâmpago) vêm da tabela de comportamento da Luísa. */
+    int saltos = 0;
+    if (elemento >= 0 && (int)elemento < QTD_COMPORTAMENTO_MAGIA &&
+        COMPORTAMENTO_MAGIA[elemento].rider == RIDER_CHAIN) {
+        saltos = COMPORTAMENTO_MAGIA[elemento].chain_saltos;
+    }
+
+    novo->dados.posicao          = posicao;
+    novo->dados.velocidade.x     = direcao_normalizada.x * p->velocidade_projetil;
+    novo->dados.velocidade.y     = direcao_normalizada.y * p->velocidade_projetil;
+    /* bonus_dano do jogador entra AQUI, no nascimento do projétil (nunca
+     * iterando a lista em voo — projéteis morrem e o bônus se perderia). */
+    novo->dados.dano             = p->dano_base + (float)ej->jogador.bonus_dano;
+    novo->dados.tempo_de_vida    = p->tempo_de_vida;
+    novo->dados.raio             = p->raio_projetil;
+    novo->dados.elemento         = elemento;
+    novo->dados.viva             = true;
+    novo->dados.saltos_restantes = saltos;
+    novo->dados.ja_acertou       = false;
 
     novo->proxima        = ej->magias_cabeca;
     ej->magias_cabeca    = novo;
+}
+
+
+/* Vetor unitário do jogador até o inimigo VIVO (não-aliado) mais próximo.
+ * Engine própria de mira: centraliza o disparo aqui (a Luísa só agenda
+ * QUANDO disparar, em magias_tipos.c). Retorna false se não há alvo. */
+static bool mirar_mais_proximo(const EstadoJogo *ej, Vector2 *out_dir) {
+    const InimigoNo *perto = NULL;
+    float menor = 1e30f;
+    for (const InimigoNo *ino = ej->inimigos_cabeca; ino; ino = ino->proximo) {
+        if (!ino->dados.vivo || ino->dados.aliado) continue;
+        float dx = ino->dados.posicao.x - ej->jogador.posicao.x;
+        float dy = ino->dados.posicao.y - ej->jogador.posicao.y;
+        float d2 = dx * dx + dy * dy;
+        if (d2 < menor) { menor = d2; perto = ino; }
+    }
+    if (perto == NULL) return false;
+
+    float dx = perto->dados.posicao.x - ej->jogador.posicao.x;
+    float dy = perto->dados.posicao.y - ej->jogador.posicao.y;
+    float c = sqrtf(dx * dx + dy * dy);
+    if (c < 0.0001f) return false;
+    out_dir->x = dx / c;
+    out_dir->y = dy / c;
+    return true;
+}
+
+
+/* Dispara um elemento mirando no inimigo mais próximo. Consome um "duplica
+ * próximos" do motor de profecia (EF_DUPLICA_PROJETIL) quando ativo.
+ * Retorna false (e não dispara) se não houver alvo — o chamador usa isso
+ * pra não acumular cooldown enquanto não há inimigos. */
+bool magias_disparar_elemento(EstadoJogo *ej, Elemento elemento) {
+    Vector2 dir;
+    if (!mirar_mais_proximo(ej, &dir)) return false;
+
+    magias_spawnar(ej, ej->jogador.posicao, dir, elemento);
+
+    if (ej->motor_profecia.duplica_proximos > 0) {
+        ej->motor_profecia.duplica_proximos--;
+        /* segundo projétil girado ~15° pra não sobrepor o primeiro */
+        Vector2 d2 = { dir.x * 0.9659f - dir.y * 0.2588f,
+                       dir.x * 0.2588f + dir.y * 0.9659f };
+        magias_spawnar(ej, ej->jogador.posicao, d2, elemento);
+    }
+    return true;
 }
 
 
