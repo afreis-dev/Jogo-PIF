@@ -33,6 +33,7 @@
  * cronograma_eventos.c). Dev 2 (Sofia) ainda popula cartas/dados/salvamento/hud. */
 #include "magias.h"
 #include "inimigos.h"
+#include "projeteis_inimigo.h"
 #include "obstaculos.h"
 #include "cronograma.h"
 #include "cartas.h"
@@ -214,6 +215,7 @@ static void atualizar_revelacao_profecia(EstadoJogo *ej) {
          * over no primeiro frame de combate. */
         jogo_resetar_run(ej);
         cronograma_inicializar(&ej->cronograma);
+        profecia_evento_inicio_run(ej);   /* dispara COND_INICIO_RUN */
         ej->proximo_estado = ESTADO_COMBATE;
     }
 }
@@ -241,6 +243,7 @@ static void atualizar_combate(EstadoJogo *ej) {
     }
 
     jogador_atualizar(&ej->jogador, ej->delta_tempo);
+    profecia_motor_atualizar(ej);   /* condições de tempo/vida/combo */
 
     /* A câmera segue o jogador em tempo real. Como o offset é o centro da
      * tela, isso mantém o player sempre centralizado e o mundo rola em volta. */
@@ -248,6 +251,7 @@ static void atualizar_combate(EstadoJogo *ej) {
 
     magias_atualizar(ej);                              /* engine Arthur */
     inimigos_atualizar(ej);                            /* engine Arthur */
+    projeteis_inimigo_atualizar(ej);                   /* engine Arthur */
     cronograma_atualizar(&ej->cronograma, ej);         /* engine Arthur */
 
     colisao_verificar_tudo(ej);                        /* engine Arthur */
@@ -281,6 +285,7 @@ static void atualizar_pausa(EstadoJogo *ej) {
          * runs. A engine usa malloc/free, então isso é obrigatório. */
         magias_liberar_tudo(ej);
         inimigos_liberar_tudo(ej);
+        projeteis_inimigo_liberar_tudo(ej);
         ej->proximo_estado = ESTADO_MENU;
     }
 }
@@ -311,6 +316,7 @@ static void atualizar_game_over(EstadoJogo *ej) {
          * próxima run, mas limpar aqui evita segurar memória entre telas. */
         magias_liberar_tudo(ej);
         inimigos_liberar_tudo(ej);
+        projeteis_inimigo_liberar_tudo(ej);
         ej->proximo_estado = ESTADO_MENU;
     }
 }
@@ -369,6 +375,7 @@ static void jogo_desenhar(const EstadoJogo *ej) {
                 obstaculos_desenhar(ej);
                 magias_desenhar(ej);
                 inimigos_desenhar(ej);
+                projeteis_inimigo_desenhar(ej);
                 jogador_desenhar(&ej->jogador);
             EndMode2D();
             /* HUD é coord de TELA (fixa, não rola com a câmera). */
@@ -404,9 +411,12 @@ static void jogo_desenhar(const EstadoJogo *ej) {
         case ESTADO_GAME_OVER: {
             DrawText("GAME OVER", LARGURA_TELA/2 - 140, 200, 60, RED);
             char buffer[128];
+            snprintf(buffer, sizeof(buffer), "Pontuacao final: %d",
+                     ej->jogador.biomassa);
+            DrawText(buffer, LARGURA_TELA/2 - 130, 300, 28, GOLD);
             snprintf(buffer, sizeof(buffer), "Seed da run: %u",
                      ej->profecia.seed);
-            DrawText(buffer, LARGURA_TELA/2 - 100, 320, 22, WHITE);
+            DrawText(buffer, LARGURA_TELA/2 - 100, 350, 22, WHITE);
             DrawText("Pressione ENTER para voltar ao menu",
                      LARGURA_TELA/2 - 230, 440, 20, GRAY);
             break;
@@ -417,14 +427,17 @@ static void jogo_desenhar(const EstadoJogo *ej) {
             DrawText("Voce derrotou o chefao final!",
                      LARGURA_TELA/2 - 200, 290, 22, WHITE);
             char buffer[128];
+            snprintf(buffer, sizeof(buffer), "Pontuacao final: %d",
+                     ej->jogador.biomassa);
+            DrawText(buffer, LARGURA_TELA/2 - 130, 340, 28, GOLD);
             int min = (int)(ej->cronograma.tempo_decorrido / 60.0f);
             int seg = (int)ej->cronograma.tempo_decorrido % 60;
             snprintf(buffer, sizeof(buffer),
                      "Tempo: %02d:%02d   Seed: %u",
                      min, seg, ej->profecia.seed);
-            DrawText(buffer, LARGURA_TELA/2 - 200, 340, 20, LIGHTGRAY);
+            DrawText(buffer, LARGURA_TELA/2 - 200, 390, 20, LIGHTGRAY);
             DrawText("Pressione ENTER para voltar ao menu",
-                     LARGURA_TELA/2 - 230, 440, 20, GRAY);
+                     LARGURA_TELA/2 - 230, 450, 20, GRAY);
             break;
         }
         default: break;
@@ -446,6 +459,7 @@ static void jogo_desenhar(const EstadoJogo *ej) {
 static void jogo_finalizar(EstadoJogo *ej) {
     magias_liberar_tudo(ej);      /* stub — libera lista encadeada */
     inimigos_liberar_tudo(ej);    /* stub — libera lista encadeada */
+    projeteis_inimigo_liberar_tudo(ej);  /* libera lista encadeada */
     salvamento_salvar(&ej->salvamento);  /* stub — grava arquivo */
 }
 
@@ -461,7 +475,9 @@ static void jogo_finalizar(EstadoJogo *ej) {
 static void jogo_resetar_run(EstadoJogo *ej) {
     magias_liberar_tudo(ej);
     inimigos_liberar_tudo(ej);
+    projeteis_inimigo_liberar_tudo(ej);
     jogador_inicializar(&ej->jogador);
+    ej->motor_profecia = (MotorProfecia){0};   /* zera timers/combo/buffs da run */
     ej->camera.target = ej->jogador.posicao;
     ej->tiros_ativos  = true;
 }
