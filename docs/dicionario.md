@@ -27,29 +27,29 @@ Este documento existe pra desbloquear o vocabulário de jogos e de arquitetura d
 ### Roguelite
 Gênero em que cada partida (chamada **run**) começa do zero, é geralmente curta (10–25 minutos) e termina na morte do jogador ou na derrota do chefão final. A diferença pro "roguelike" puro é que entre runs você acumula uma progressão permanente — alguma coisa fica desbloqueada mesmo perdendo.
 
-**No projeto:** AUGUR é um roguelite. Cada run gera uma profecia diferente (ver `profecia.c`) e ao morrer você ganha biomassa que persiste entre runs (ver campo `biomassa_total` em `DadosSalvos`, em `tipos.h`).
+**No projeto:** AUGUR é um roguelite. Cada run gera uma profecia diferente (ver `profecia.c`). Na versão atual a parte "progressão permanente" está **fora de escopo**: a biomassa coletada matando inimigos é a **pontuação da run**, mostrada na tela de game over / vitória — não persiste entre runs.
 
 ### Run
 Uma **partida individual** do jogo, do começo ao game over (ou vitória). Não confunda com "rodar o programa". Um jogador pode iniciar várias runs em uma mesma sessão de jogo.
 
-**No projeto:** uma run dura no máximo 15 minutos. Vai do `ESTADO_MENU` (apertar ENTER) até `ESTADO_GAME_OVER` (morreu) ou `ESTADO_VITORIA` (derrotou o chefão aos 15:00).
+**No projeto:** uma run dura no máximo 5 minutos. Vai do `ESTADO_MENU` (apertar ENTER) até `ESTADO_GAME_OVER` (morreu) ou `ESTADO_VITORIA` (derrotou o chefão aos 5:00).
 
 ### Wave / Onda
 Um **grupo de inimigos** que aparecem no jogo durante um período. Termo clássico: nas ondas 1, 2, 3..., cada onda é mais difícil que a anterior. Quando todos morrem ou um timer acaba, geralmente abre uma tela de upgrade.
 
-**No projeto:** AUGUR **não usa ondas finitas** mais. Foi substituído pelo conceito de **timeline / cronograma** (ver abaixo) — uma única run contínua de 15 minutos com fases sobrepostas. O termo "wave" ainda aparece em conversa como sinônimo de "fase intensa", mas no código a struct `Onda` não existe mais.
+**No projeto:** AUGUR **não usa ondas finitas** mais. Foi substituído pelo conceito de **timeline / cronograma** (ver abaixo) — uma única run contínua de 5 minutos com fases sobrepostas. O termo "wave" ainda aparece em conversa como sinônimo de "fase intensa", mas no código a struct `Onda` não existe mais.
 
 ### Timeline / Cronograma
-A **linha do tempo da run inteira**, em vez de ondas separadas. Estilo Vampire Survivors: o tempo conta de 0:00 a 15:00, e em momentos específicos novos tipos de inimigos começam a aparecer (ranged em 2:00, elites em 5:00, …).
+A **linha do tempo da run inteira**, em vez de ondas separadas. Estilo Vampire Survivors: o tempo conta de 0:00 a 5:00, e em momentos específicos novos tipos de inimigos começam a aparecer (ranged em 0:40, elites em 1:40, …).
 
-**No projeto:** struct `Cronograma` em `tipos.h`, engine em `cronograma.c` e tabela declarativa de eventos em `cronograma_eventos.c`. Aos 15:00 a engine spawna o chefão final automaticamente.
+**No projeto:** struct `Cronograma` em `tipos.h`, engine em `cronograma.c` e tabela declarativa de eventos em `cronograma_eventos.c`. Aos 5:00 a engine spawna o chefão final automaticamente.
 
 ### Meta-progressão
 Progresso permanente do jogador que **persiste entre runs**, mesmo quando ele morre. É o que faz o roguelite ser viciante: cada morte ainda dá algum ganho.
 
-**No projeto:** a moeda é a **biomassa**. Acumula no `DadosSalvos.biomassa_total` (salvo em `saves/biomassa.dat`) e desbloqueia novos dados, magias e profecias.
+**No projeto:** **fora de escopo na versão atual.** A biomassa existe (`Jogador.biomassa`) mas é usada como **pontuação da run**, exibida no game over / vitória — não persiste entre runs. `DadosSalvos` e `salvamento.c` continuam como stub dormente da Sofia; quando a meta-progressão voltar ao escopo, a moeda persistente entra aqui.
 
-> **Vocabulário, não poder.** O design do AUGUR é deliberado: a meta-progressão **não te deixa mais forte diretamente** — desbloqueia *opções* (novos dados com perfis de risco, novas magias, novas mutações passivas, dicas de Profecia). Quem joga há mais tempo resolve profecias mais variadas porque tem mais ferramentas, não porque os números cresceram. Esse é o "vocabulário" — citado no GDD na seção de Meta-progressão.
+> **Vocabulário, não poder.** O design original do AUGUR é deliberado: a meta-progressão **não deixaria o jogador mais forte diretamente** — desbloquearia *opções* (novos dados, magias, mutações passivas, dicas de Profecia). Mantido aqui como referência de design do GDD; **não implementado** na versão atual.
 
 ---
 
@@ -73,7 +73,7 @@ Em jogos com customização (RPGs, roguelites), uma **build** é a combinação 
 ### Boss / Chefão
 **Inimigo gigante e excepcional**, geralmente no fim de uma fase. Tem muito mais HP, dano e às vezes fases por % de vida (muda de comportamento ao perder HP).
 
-**No projeto:** `INIMIGO_CHEFE` no enum `TipoInimigo`. A engine spawna automaticamente aos 15:00 da timeline depois de **limpar a arena** (libera todos os inimigos vivos pra criar atmosfera de boss fight). Usa a IA `IA_BOSS_FASES` com 3 fases: acima de 50% velocidade base; abaixo de 50% acelera 1.25×; abaixo de 25% acelera 1.5× **e** spawna 1 minion (corpo a corpo) a cada 5s perto dele.
+**No projeto:** `INIMIGO_CHEFE` no enum `TipoInimigo`. A engine spawna automaticamente aos 5:00 da timeline depois de **limpar a arena** (libera todos os inimigos vivos pra criar atmosfera de boss fight). Usa a IA `IA_BOSS_FASES` com 3 fases: acima de 50% velocidade base; abaixo de 50% acelera 1.25×; abaixo de 25% acelera 1.5× **e** spawna 1 minion (corpo a corpo) a cada 5s perto dele.
 
 ### Buff / Debuff
 **Buff** = efeito *positivo* temporário (mais dano, mais velocidade, escudo). **Debuff** = efeito *negativo* (lento, queimando, com menos defesa).
@@ -99,12 +99,12 @@ Comportamento oposto ao chase: o inimigo **mantém distância** do jogador. Se o
 ### Elite
 **Versão buffada** de um inimigo comum: mesma "ideia" geral mas com mais HP, mais dano, mais velocidade e dropa mais recompensa. Tipicamente roxo/dourado pra destacar.
 
-**No projeto:** `INIMIGO_ELITE` em `TipoInimigo`. Stats em `inimigos_tipos.c` na tabela `PARAMETROS_INIMIGO[]` — vida 90, dano 18, cor roxa. A timeline (em `cronograma_eventos.c`) só começa a spawnar elites a partir dos 5:00 da run.
+**No projeto:** `INIMIGO_ELITE` em `TipoInimigo`. Stats em `inimigos_tipos.c` na tabela `PARAMETROS_INIMIGO[]` (cor roxa; números são tunáveis pela Luísa). Na timeline de 5 min (em `cronograma_eventos.c`) os elites só começam a aparecer a partir de ~1:40 da run.
 
 ### Feiticeiro / Wizard
 Termo do GDD pro jogador. AUGUR é mundo de magia — o protagonista não é um soldado, é um conjurador.
 
-**No projeto:** a struct `Jogador` em `tipos.h` é o feiticeiro. Mecanicamente igual a qualquer "player" de bullet hell: posição, velocidade, raio, vida. As **mutações passivas** da meta-progressão são desbloqueios permanentes do feiticeiro (bônus que valem em toda run, independente da Profecia).
+**No projeto:** a struct `Jogador` em `tipos.h` é o feiticeiro. Mecanicamente igual a qualquer "player" de bullet hell: posição, velocidade, raio, vida, `bonus_dano` (somado no dano de toda magia ao disparar). As **mutações passivas** da meta-progressão são referência do GDD; **fora de escopo na versão atual**.
 
 ### Formação / Cerco / Surround
 Quando vários inimigos **se distribuem em volta do jogador** em vez de virem todos do mesmo lado. Fechando ângulos de fuga, viram pressão real: você não tem um "lado seguro" pra recuar. Em jogos com muitos inimigos é o que diferencia "burros me seguindo" de "inteligentes me cercando".
@@ -114,22 +114,22 @@ Quando vários inimigos **se distribuem em volta do jogador** em vez de virem to
 ### Grimório
 Termo da fantasia: **livro de magias** do feiticeiro. Em jogos, costuma ser usado pro pool de magias disponíveis pro jogador.
 
-**No projeto:** o "Grimório de Magias" é uma das categorias de meta-progressão (GDD). Aumentar o grimório = desbloquear novas magias que vão entrar no sorteio inicial e nas cartas de upgrade. Não tem struct dedicada ainda; será um array de booleans em `DadosSalvos`.
+**No projeto:** o "Grimório de Magias" é uma das categorias de meta-progressão do GDD — **fora de escopo na versão atual**. Hoje os elementos que o jogador dispara vêm direto dos 3 mods da Profecia (`magias_tipos.c` / `magias_comportamento.c`), sem desbloqueio persistente.
 
 ### Hit
 Acerto. Tanto "o projétil acertou o inimigo" quanto "o inimigo me acertou" são "hits".
 
-**No projeto:** as condições da profecia usam isso muito: `COND_AO_ACERTAR` (toda vez que magia acerta), `COND_EM_CRITICO` (quando o hit é crítico), `COND_AO_RECEBER_DANO` (quando o jogador toma um hit).
+**No projeto:** as condições da profecia (enum `Condicao` em `tipos.h`, reorganizado conforme o GDD) usam isso: `COND_AO_ACERTAR` (toda magia que acerta), `COND_PRIMEIRA_HIT` (a 1ª da run), `COND_AO_MATAR` (inimigo morreu) e `COND_AO_RECEBER_DANO` (jogador tomou hit). O motor que dispara os efeitos fica em `profecia.c`.
 
 ### Combo
 Sequência de acertos/abates dentro de uma janela de tempo curta. Geralmente recompensa o jogador (mais dano, gatilho de efeito).
 
-**No projeto:** a condição `COND_COMBO_X3` em `tipos.h` dispara o efeito da profecia depois de 3 kills seguidos.
+**No projeto:** a condição `COND_EM_COMBO` em `tipos.h` dispara o efeito da profecia quando o jogador atinge o limiar de kills dentro da janela de combo. Limiar e janela são tunáveis pela Luísa em `profecia_efeitos.c` (`LIMIARES_CONDICAO`).
 
 ### Combo emergente
 Interação entre dois sistemas (geralmente magias) que **cria um efeito não documentado** — o jogador descobre por experimentação. Não é uma feature listada em tutorial; é uma consequência natural das regras se combinarem. Quando o sistema permite combos emergentes, o jogador "inventa" estratégias e isso vira parte da identidade do jogo.
 
-**No projeto:** o GDD lista dois exemplos planejados: **Choque Térmico** (Bola de Fogo + Nova de Gelo → stun de 2s e dano triplicado na próxima hit) e **Corrente Arcana + Nuvem Venenosa** (cadência da corrente dobra dentro da nuvem). Implementação ainda pendente — cabe à Luísa preencher conforme as magias forem ganhando comportamento.
+**No projeto:** **implementados** na engine (`combos.c`), com números tunáveis pela Luísa em `profecia_efeitos.c` (`MAGNITUDES_EFEITO`): **Choque Térmico** (Fogo depois Gelo no mesmo inimigo → stun + a próxima hit nele é amplificada) e **Arcano × envenenado** (adaptação do "Corrente Arcana + Nuvem Venenosa" ao modelo projétil+status: Arcano causa dano dobrado em inimigo sob efeito de veneno). A detecção fica em `colisao.c`, no ponto do acerto.
 
 ### Cooldown
 **Tempo de espera** entre dois usos de uma habilidade. Aperto a magia → ela dispara → preciso esperar X segundos pra usar de novo.
@@ -161,7 +161,7 @@ Dano **contínuo ao longo do tempo**, não num pulso só. Ex.: queimadura que ti
 ### Horda
 **Grupo grande de inimigos vindo ao mesmo tempo.** Em bullet hell e roguelite, hordas crescem em densidade conforme a run avança — começa com poucos, termina com a tela cheia.
 
-**No projeto:** a `cronograma_eventos.c` modela hordas de forma declarativa. Cada linha da tabela diz "do tempo X ao tempo Y, spawnar tipo T a cada Z segundos". Sobreposição de eventos = horda mais densa (ex.: aos 8:00 melee acelera pra 0.8s e elites começam a 5.0s, criando pressão simultânea).
+**No projeto:** a `cronograma_eventos.c` modela hordas de forma declarativa. Cada linha da tabela diz "do tempo X ao tempo Y, spawnar tipo T a cada Z segundos". Sobreposição de eventos = horda mais densa (na timeline de 5 min: por volta de 2:40 o melee acelera pra 0.8s enquanto elites já spawnam, criando pressão simultânea). Os tempos são tunáveis pela Luísa.
 
 ### HP (Health Points)
 **Pontos de vida.** Quando chega a zero, a entidade morre.
@@ -176,12 +176,12 @@ Dano **contínuo ao longo do tempo**, não num pulso só. Ex.: queimadura que ti
 ### Knockback
 **Empurrão** que um ataque dá no alvo. Ataque com knockback pra fora afasta o inimigo; sem knockback ele "fica colado" em você.
 
-**No projeto:** ainda não implementado. Em `colisao.c` há um comentário mencionando que seria legal adicionar knockback no contato jogador-inimigo no jogo final. Por ora, só dano puro.
+**No projeto:** não implementado. O contato jogador-inimigo em `colisao.c` aplica dano puro + push-out físico (o inimigo bloqueia o jogador), sem knockback.
 
 ### Mutação passiva
 Bônus permanente do **feiticeiro** que vale em todas as runs, independente da Profecia. Ao contrário de uma carta de upgrade (que vive só na run atual), uma mutação fica desbloqueada pra sempre depois que você gasta biomassa nela.
 
-**No projeto:** ainda não implementado em código. Reservado em `tipos.h` (`DadosSalvos` tem espaço pra contadores de desbloqueio) e listado no GDD como uma das categorias de meta-progressão.
+**No projeto:** **fora de escopo na versão atual** (depende de meta-progressão/save persistente, que não está no escopo agora). Mantido como referência de design do GDD.
 
 ### Minion / Reforço
 Inimigo **secundário invocado por outro inimigo** (geralmente um chefão ou elite). Aparece em fases finais pra aumentar pressão — em vez de só lidar com o boss, você precisa lidar com o boss + os bichinhos que ele chama.
@@ -230,7 +230,7 @@ Cada **iteração regular** de um efeito que tem duração. Um veneno de "5 dano
 ### HUD (Heads-Up Display)
 Camada de **informação fixa na tela**, sobreposta ao jogo: barra de vida, contador de munição, mapinha. Geralmente nos cantos.
 
-**No projeto:** módulo `hud.c` da Sofia. Mostra barra de vida no canto superior esquerdo, tempo da run no topo central (`MM:SS / 15:00`), e moedinha de biomassa abaixo da barra.
+**No projeto:** módulo `hud.c` da Sofia. Mostra barra de vida no canto superior esquerdo, tempo da run no topo central (`MM:SS / 05:00`), e moedinha de biomassa (pontuação da run) abaixo da barra.
 
 ### Indicador (de toggle)
 Pequeno texto/ícone **mostrando o estado de uma opção** que o jogador pode mudar. Aparece pra dar feedback de que a tecla teve efeito.
