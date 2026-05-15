@@ -1,11 +1,11 @@
 /* ============================================================================
- * cronograma.h - INTERFACE DA TIMELINE (15 MIN ATÉ O CHEFÃO)
+ * cronograma.h - INTERFACE DA TIMELINE (5 MIN ATÉ O CHEFÃO)
  * ============================================================================
  *
  * RESPONSABILIDADE: Arthur (Dev 1) — engine.
  *
  * Substitui o antigo sistema de "ondas finitas". O cronograma é uma timeline
- * contínua de 15 minutos: a engine consulta a tabela EVENTOS_CRONOGRAMA[]
+ * contínua de 5 minutos: a engine consulta a tabela EVENTOS_CRONOGRAMA[]
  * (em src/sistemas/cronograma_eventos.c) pra decidir quem spawnar e quando.
  *
  * COMO É USADO NO MAIN.C:
@@ -24,8 +24,8 @@
 
 #include "tipos.h"
 
-/* Duração total da run, em segundos. Aos 15:00 spawna o chefão. */
-#define CRONOGRAMA_DURACAO_SEG          (15.0f * 60.0f)
+/* Duração total da run, em segundos. Aos 5:00 spawna o chefão. */
+#define CRONOGRAMA_DURACAO_SEG          (5.0f * 60.0f)
 
 /* Intervalo entre triggers de carta (em segundos). 60 = a cada minuto cheio. */
 #define CRONOGRAMA_INTERVALO_CARTAS_SEG  60.0f

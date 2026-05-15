@@ -1,5 +1,5 @@
 /* ============================================================================
- * cronograma_eventos.c - TIMELINE DE 15 MINUTOS (LUÍSA EDITA AQUI)
+ * cronograma_eventos.c - TIMELINE DE 5 MINUTOS (LUÍSA EDITA AQUI)
  * ============================================================================
  *
  * Esta é a "linha do tempo" da run. Cada linha da tabela diz:
@@ -7,6 +7,13 @@
  *
  * A engine (cronograma.c) lê essa tabela e faz o resto: copia pra um buffer
  * mutável, mantém timers, pede pros inimigos.c spawnarem na hora certa.
+ *
+ * >>> LUÍSA: a run agora dura 5:00 (300s) — o chefão entra aos 5:00 e a
+ *     engine desliga todos os eventos. Os tempos abaixo já foram comprimidos
+ *     proporcionalmente (era 15min, virou 5min: tudo /3). Ajuste fino do
+ *     balanceamento (intervalos, quando cada tipo entra, densidade) é seu:
+ *     mexa SÓ nesta tabela. Mantenha o último tempo_fim <= 300s e lembre
+ *     que múltiplos eventos podem rodar juntos (somam pressão). <<<
  *
  * ----------------------------------------------------------------------------
  * COMO ADICIONAR UMA NOVA FASE NA TIMELINE:
@@ -33,25 +40,25 @@
 #include <math.h>      /* INFINITY */
 
 const EventoCronograma EVENTOS_CRONOGRAMA[] = {
-    /* tempo_inicio,  tempo_fim,    tipo,                    intervalo, timer, ativo */
+    /* tempo_inicio, tempo_fim,   tipo,                  intervalo, timer, ativo */
 
-    /* Onda 1 — corpo a corpo desde o início, baixa pressão. */
-    { 0.0f,           15.0f * 60.0f, INIMIGO_CORPO_A_CORPO,   1.5f,      0.0f,  false },
+    /* 0:00 — corpo a corpo desde o início, baixa pressão. */
+    { 0.0f,          5.0f * 60.0f, INIMIGO_CORPO_A_CORPO, 1.5f,      0.0f,  false },
 
-    /* Aos 2:00 entram os ranged. Player precisa começar a se mover mais. */
-    { 2.0f * 60.0f,   15.0f * 60.0f, INIMIGO_A_DISTANCIA,     3.0f,      0.0f,  false },
+    /* 0:40 — entram os ranged. Player precisa começar a se mover mais. */
+    { 40.0f,         5.0f * 60.0f, INIMIGO_A_DISTANCIA,   3.0f,      0.0f,  false },
 
-    /* Aos 5:00 elites começam a aparecer (raros). */
-    { 5.0f * 60.0f,   15.0f * 60.0f, INIMIGO_ELITE,           8.0f,      0.0f,  false },
+    /* 1:40 — elites começam a aparecer (raros). */
+    { 100.0f,        5.0f * 60.0f, INIMIGO_ELITE,         8.0f,      0.0f,  false },
 
-    /* Aos 8:00 melee acelera (sobreposto à linha de cima — fica mais denso). */
-    { 8.0f * 60.0f,   15.0f * 60.0f, INIMIGO_CORPO_A_CORPO,   0.8f,      0.0f,  false },
+    /* 2:40 — melee acelera (sobreposto à linha de cima — fica mais denso). */
+    { 160.0f,        5.0f * 60.0f, INIMIGO_CORPO_A_CORPO, 0.8f,      0.0f,  false },
 
-    /* Aos 10:00 elites ficam mais frequentes. Caos cresce na reta final. */
-    { 10.0f * 60.0f,  15.0f * 60.0f, INIMIGO_ELITE,           5.0f,      0.0f,  false },
+    /* 3:20 — elites ficam mais frequentes. Caos cresce na reta final. */
+    { 200.0f,        5.0f * 60.0f, INIMIGO_ELITE,         5.0f,      0.0f,  false },
 
-    /* Aos 12:00 ranged também acelera. */
-    { 12.0f * 60.0f,  15.0f * 60.0f, INIMIGO_A_DISTANCIA,     1.5f,      0.0f,  false },
+    /* 4:00 — ranged também acelera, último minuto antes do chefão. */
+    { 240.0f,        5.0f * 60.0f, INIMIGO_A_DISTANCIA,   1.5f,      0.0f,  false },
 };
 
 const int QTD_EVENTOS_CRONOGRAMA =

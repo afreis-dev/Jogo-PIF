@@ -62,7 +62,7 @@ void hud_desenhar_barra_vida(const EstadoJogo *ej)
 }
 
 
-/* Tempo decorrido da run, formato MM:SS / 15:00. Centralizado no topo.
+/* Tempo decorrido da run, formato MM:SS / 05:00. Centralizado no topo.
  * STOPGAP do Arthur (PR feat/engine-cronograma-tipos): a struct Onda foi
  * substituída por Cronograma (timeline VS-like). Sofia, veja a issue
  * docs/issue-hud-cronograma.md pra deixar isso bonito (cor que pulsa nos
@@ -71,7 +71,7 @@ void hud_desenhar_onda(const EstadoJogo *ej){
     char buf[32];
     int min = (int)(ej->cronograma.tempo_decorrido / 60.0f);
     int seg = (int)ej->cronograma.tempo_decorrido % 60;
-    snprintf(buf, 32, "%02d:%02d / 15:00", min, seg);
+    snprintf(buf, 32, "%02d:%02d / 05:00", min, seg);
     DrawText(buf, LARGURA_TELA / 2 - 70, HUD_MARGEM, HUD_FONTE_GRANDE, GOLD);
 }
 

@@ -11,7 +11,7 @@
  *      não foi marcado como inativo, decrementa timer_interno; quando zera,
  *      pede pra inimigos.c spawnar 1 inimigo do tipo do evento numa posição
  *      aleatória ao redor da câmera.
- *   3. Quando tempo >= 15:00, spawna 1 chefão e desativa todos os outros
+ *   3. Quando tempo >= 5:00, spawna 1 chefão e desativa todos os outros
  *      eventos (a luta vira só contra o chefão).
  *   4. Quando o chefão morre (lista de inimigos vazia + esperando_chefao_morrer),
  *      seta vitoria = true. O main vê e troca o estado.
@@ -96,15 +96,15 @@ void cronograma_atualizar(Cronograma *c, EstadoJogo *ej) {
 
     c->tempo_decorrido += ej->delta_tempo;
 
-    /* ---- 1. Spawn do chefão aos 15:00 ---- */
+    /* ---- 1. Spawn do chefão aos 5:00 ---- */
     if (!c->chefao_spawnado &&
         c->tempo_decorrido >= CRONOGRAMA_DURACAO_SEG) {
 
         /* Limpa a arena ANTES de spawnar o chefão. Dois motivos:
          *  - Atmosfera: a luta vira só "você vs ele", coerente com o aviso
          *    visual de boss fight.
-         *  - Garantia: aos 15min a lista pode estar perto de MAX_INIMIGOS
-         *    (eventos sobrepostos somam ~3.6 spawns/s). Sem limpar, o
+         *  - Garantia: aos 5min a lista pode estar perto de MAX_INIMIGOS
+         *    (eventos sobrepostos somam vários spawns/s). Sem limpar, o
          *    inimigos_spawnar_em do chefe pode falhar silenciosamente, e o
          *    jogo cairia em ESTADO_VITORIA assim que o jogador matasse os
          *    inimigos restantes — sem chefão na tela. */
