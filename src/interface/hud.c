@@ -57,7 +57,7 @@ void hud_desenhar_barra_vida(const EstadoJogo *ej)
 
     char buf[32];
     snprintf(buf, sizeof(buf), "HP: %d/%d", ej->jogador.vida, ej->jogador.vida_maxima);
-    DrawText(buf, x + 4, y + 6, HUD_FONTE_PEQUENA, WHITE);
+    DrawText(buf, x + 4, y + 2, HUD_FONTE_PEQUENA, WHITE);
 
 }
 
