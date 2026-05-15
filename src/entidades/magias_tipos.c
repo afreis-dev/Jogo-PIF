@@ -93,74 +93,43 @@ const int QTD_PARAMETROS_MAGIA =
 /* ----------------------------------------------------------------------------
  * 2. AUTO-FIRE
  * ----------------------------------------------------------------------------
- * Decide a cada frame se é hora de disparar. Hoje:
- *   - Cada elemento tem seu próprio timer interno (estático aqui).
- *   - Quando o timer zera, mira no inimigo VIVO mais próximo.
- *   - Por enquanto SÓ o elemento principal da profecia atira (mods[0]).
- *     Quando a Sofia entregar o sistema de magias múltiplas, esta função
- *     vai iterar sobre as magias equipadas do jogador.
+ * A cada frame processa os 3 modificadores da profecia: cada mod dispara seu
+ * elemento no inimigo mais próximo, com cadência própria. A mira e o spawn
+ * (e o rider de status) ficam na engine — aqui só agendamos o tempo.
+ *
+ * Os timers vivem em ej->motor_profecia.timer_disparo_mod[] (um por mod),
+ * não mais em `static`: assim resetam junto com a run e os 3 mods coexistem.
+ * Sem alvo, magias_disparar_elemento retorna false e o timer fica em 0 (não
+ * acumula disparos — atira assim que um inimigo aparece).
  * --------------------------------------------------------------------------*/
 
-/* Helper: vetor unitário do jogador até o inimigo vivo mais próximo. Retorna
- * false se não houver inimigos vivos. */
-static bool encontrar_alvo(const EstadoJogo *ej, Vector2 *out_dir) {
-    const InimigoNo *mais_perto = NULL;
-    float menor_dist2 = 1e30f;
-
-    for (const InimigoNo *ino = ej->inimigos_cabeca;
-         ino != NULL;
-         ino = ino->proximo) {
-        if (!ino->dados.vivo) continue;
-        float dx = ino->dados.posicao.x - ej->jogador.posicao.x;
-        float dy = ino->dados.posicao.y - ej->jogador.posicao.y;
-        float d2 = dx * dx + dy * dy;
-        if (d2 < menor_dist2) {
-            menor_dist2 = d2;
-            mais_perto  = ino;
-        }
-    }
-    if (mais_perto == NULL) return false;
-
-    float dx = mais_perto->dados.posicao.x - ej->jogador.posicao.x;
-    float dy = mais_perto->dados.posicao.y - ej->jogador.posicao.y;
-    float comprimento = sqrtf(dx * dx + dy * dy);
-    if (comprimento < 0.0001f) return false;
-
-    out_dir->x = dx / comprimento;
-    out_dir->y = dy / comprimento;
-    return true;
-}
-
+/* Quanto o cooldown encolhe enquanto o efeito Reduz Cooldown da profecia
+ * está ativo. Tunável: 1.0 = sem efeito, 0.5 = dobro de cadência. */
+static const float FATOR_REDUZ_COOLDOWN = 0.5f;
 
 void magias_tipos_processar_auto_fire(EstadoJogo *ej) {
-    /* Q toggle global: se o jogador desligou os tiros, simplesmente sai.
-     * Os timers ficam congelados (não decrementa nem reseta), pra retomar
-     * exatamente no mesmo cooldown quando ligar de novo. */
+    /* Q toggle global: se o jogador desligou os tiros, sai sem mexer nos
+     * timers (retoma no mesmo cooldown quando religar). */
     if (!ej->tiros_ativos) return;
 
-    /* Timers persistentes entre frames: um por elemento. Inicializam em 0,
-     * o que faz o primeiro tick disparar (sensação imediata ao começar). */
-    static float timer_por_elemento[ELEMENTO_TOTAL] = {0};
+    for (int m = 0; m < 3; m++) {
+        Elemento e = ej->profecia.mods[m].elemento;
+        if ((int)e < 0 || (int)e >= QTD_PARAMETROS_MAGIA) {
+            e = ELEMENTO_ARCANO;   /* fallback seguro */
+        }
 
-    /* Por ora, atira apenas o elemento do mod[0] da profecia.
-     * Quando a Luísa quiser, dá pra iterar todos os 3 mods. */
-    Elemento elemento_ativo = ej->profecia.mods[0].elemento;
-    if ((int)elemento_ativo < 0 || (int)elemento_ativo >= QTD_PARAMETROS_MAGIA) {
-        elemento_ativo = ELEMENTO_ARCANO;   /* fallback seguro */
+        float *timer = &ej->motor_profecia.timer_disparo_mod[m];
+        *timer -= ej->delta_tempo;
+        if (*timer > 0.0f) continue;
+
+        if (magias_disparar_elemento(ej, e)) {
+            float intervalo = PARAMETROS_MAGIA[e].intervalo_disparo;
+            if (ej->motor_profecia.reduz_cooldown_tempo > 0.0f) {
+                intervalo *= FATOR_REDUZ_COOLDOWN;
+            }
+            *timer += intervalo;
+        } else {
+            *timer = 0.0f;   /* sem alvo: dispara assim que algo aparecer */
+        }
     }
-
-    timer_por_elemento[elemento_ativo] -= ej->delta_tempo;
-    if (timer_por_elemento[elemento_ativo] > 0.0f) return;
-
-    Vector2 dir;
-    if (!encontrar_alvo(ej, &dir)) {
-        /* Sem inimigos: não atira, mas evita "guardar disparos" — mantém o
-         * timer em zero pra disparar assim que algo aparecer. */
-        timer_por_elemento[elemento_ativo] = 0.0f;
-        return;
-    }
-
-    magias_spawnar(ej, ej->jogador.posicao, dir, elemento_ativo);
-    timer_por_elemento[elemento_ativo] +=
-        PARAMETROS_MAGIA[elemento_ativo].intervalo_disparo;
 }
