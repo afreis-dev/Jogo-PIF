@@ -287,51 +287,16 @@ static void atualizar_pausa(EstadoJogo *ej) {
 
 /* --- Estado: CARTAS_UPGRADE ------------------------------------------------
  * Tela de escolha disparada a cada minuto cheio do cronograma. O tempo da
- * timeline NÃO avança enquanto este estado está ativo. Dev 2 processa input
- * de 1/2/3 pra escolher carta. ESPAÇO continua pulando como placeholder. */
+ * timeline NÃO avança enquanto este estado está ativo. O jogador aperta 1/2/3
+ * pra escolher a carta; a escolha é aplicada e o controle volta pro combate. */
 static void atualizar_cartas_upgrade(EstadoJogo *ej) {
-    /* ========================================================================
-     * GUIA PARA SOFIA — substituir o placeholder por input real (1, 2, 3)
-     * ------------------------------------------------------------------------
-     * Este é o "input do teclado" para a tela de cartas. Quem chama isso é a
-     * máquina de estados em `jogo_atualizar`, uma vez por frame, sempre que
-     * o estado atual é ESTADO_CARTAS_UPGRADE.
-     *
-     * Hoje, apertar ESPAÇO pula a tela sem aplicar nada (placeholder abaixo).
-     * Você quer trocar para algo tipo:
-     *
-     *   PASSO 1: decidir qual carta foi escolhida nesse frame
-     *
-     *     int escolha = -1;
-     *     if      (IsKeyPressed(KEY_ONE))   escolha = 0;
-     *     else if (IsKeyPressed(KEY_TWO))   escolha = 1;
-     *     else if (IsKeyPressed(KEY_THREE)) escolha = 2;
-     *
-     *   PASSO 2: se o jogador apertou algo válido, aplicar a carta no jogador
-     *   e devolver o controle pro combate. A função abaixo
-     *   (`cronograma_consumir_carta_pendente`) cuida de marcar pro cronograma
-     *   que a escolha foi feita — você não precisa avançar onda manualmente.
-     *
-     *     if (escolha >= 0) {
-     *         cartas_aplicar(ej, escolha);
-     *         cronograma_consumir_carta_pendente(&ej->cronograma);
-     *         ej->proximo_estado = ESTADO_COMBATE;
-     *     }
-     *
-     *   PASSO 3: quando tudo estiver funcionando, REMOVA o bloco do KEY_SPACE
-     *   abaixo. Ele só serve enquanto o resto não está implementado.
-     *
-     * Por que `int escolha = -1` em vez de chamar `cartas_aplicar` direto?
-     *   Centraliza em UM ponto o "aplicar + consumir carta + mudar estado" —
-     *   se mudar a transição depois, muda em um lugar só.
-     *
-     * Outras teclas que você pode aproveitar (opcional):
-     *   - KEY_KP_1, KEY_KP_2, KEY_KP_3 — números do teclado numérico.
-     * ====================================================================== */
+    int escolha = -1;
+    if      (IsKeyPressed(KEY_ONE))   escolha = 0;
+    else if (IsKeyPressed(KEY_TWO))   escolha = 1;
+    else if (IsKeyPressed(KEY_THREE)) escolha = 2;
 
-    /* Placeholder: pula a tela apertando ESPAÇO sem aplicar carta nenhuma.
-     * Dev 2 substitui por input real das cartas. */
-    if (IsKeyPressed(KEY_SPACE)) {
+    if (escolha >= 0) {
+        cartas_aplicar(ej, escolha);
         cronograma_consumir_carta_pendente(&ej->cronograma);
         ej->proximo_estado = ESTADO_COMBATE;
     }
