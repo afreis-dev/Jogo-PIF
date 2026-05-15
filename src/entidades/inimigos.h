@@ -38,4 +38,17 @@ void inimigos_liberar_tudo(EstadoJogo *ej);
  * estourar MAX_INIMIGOS. */
 void inimigos_spawnar_em(EstadoJogo *ej, Vector2 posicao, TipoInimigo tipo);
 
+/* Caminho ÚNICO de morte de inimigo. Idempotente (no-op se já morto).
+ * Marca vivo=false e credita biomassa. Toda fonte de dano (colisão, DoT,
+ * combo, explosão) DEVE matar por aqui — senão o kill não vira pontuação.
+ * O free do nó continua sendo do PASS 3 de inimigos_atualizar. */
+void inimigos_registrar_morte(EstadoJogo *ej, Inimigo *i);
+
+/* Spawna um inimigo "aliado" temporário (EF_SPAWNA_ALIADO da profecia): não
+ * fere o jogador, não é alvo das magias dele e some após `duracao` s. A
+ * vida é `vida_frac` da vida de um corpo-a-corpo. Encapsula o spawn pra
+ * pegar o nó certo com segurança (inimigos_spawnar_em insere na cabeça). */
+void inimigos_spawnar_aliado(EstadoJogo *ej, Vector2 pos,
+                             float vida_frac, float duracao);
+
 #endif /* INIMIGOS_H */
