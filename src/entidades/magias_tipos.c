@@ -25,7 +25,7 @@
  *   [5] ELEMENTO_SOMBRA
  * --------------------------------------------------------------------------*/
 const ParametrosMagia PARAMETROS_MAGIA[] = {
-    /* fogo — dano alto, projétil médio. */
+    /* 🔴 fogo — dano alto, projétil médio. */ 
     {
         .dano_base           = 18.0f,
         .velocidade_projetil = 480.0f,
@@ -35,7 +35,7 @@ const ParametrosMagia PARAMETROS_MAGIA[] = {
         .cor                 = (Color){ 255, 110,  40, 255 },
     },
 
-    /* gelo — leve, mais lento, fica vivo um pouco mais. */
+    /* 🔵 gelo — leve, mais lento, fica vivo um pouco mais. */
     {
         .dano_base           = 12.0f,
         .velocidade_projetil = 380.0f,
@@ -45,17 +45,17 @@ const ParametrosMagia PARAMETROS_MAGIA[] = {
         .cor                 = (Color){ 130, 200, 255, 255 },
     },
 
-    /* relâmpago — rápido, dano médio, cooldown curto. */
+    /* 🟡 relâmpago — rápido, dano médio, cooldown curto. */
     {
         .dano_base           = 14.0f,
         .velocidade_projetil = 600.0f,
         .tempo_de_vida       = 1.2f,
         .raio_projetil       = 6.0f,
         .intervalo_disparo   = 0.30f,
-        .cor                 = (Color){ 230, 230,  90, 255 },
+        .cor                 = (Color){ 245, 215,  90, 255 },
     },
 
-    /* veneno — dano baixo, mas continua vivo bastante (ideia: DoT futuro). */
+    /* 🟢 veneno — dano baixo, mas continua vivo bastante (ideia: DoT futuro). */
     {
         .dano_base           = 10.0f,
         .velocidade_projetil = 350.0f,
@@ -65,17 +65,17 @@ const ParametrosMagia PARAMETROS_MAGIA[] = {
         .cor                 = (Color){ 110, 200,  90, 255 },
     },
 
-    /* arcano — equilibrado, magia "default". */
+    /* 🔘 arcano — equilibrado, magia "default". */
     {
         .dano_base           = 15.0f,
         .velocidade_projetil = 460.0f,
         .tempo_de_vida       = 1.5f,
         .raio_projetil       = 7.0f,
         .intervalo_disparo   = 0.40f,
-        .cor                 = (Color){ 180, 120, 255, 255 },
+        .cor                 = (Color){ 85, 100, 145, 255 },
     },
 
-    /* sombra — alto dano, baixa cadência. */
+    /* 🟣 sombra — alto dano, baixa cadência. */
     {
         .dano_base           = 22.0f,
         .velocidade_projetil = 420.0f,

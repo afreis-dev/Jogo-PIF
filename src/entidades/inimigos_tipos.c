@@ -28,9 +28,9 @@
 const ParametrosInimigo PARAMETROS_INIMIGO[] = {
     /* corpo a corpo — base do jogo, anda direto no jogador. */
     {
-        .vida_base            = 30,
+        .vida_base            = 50,
         .dano                 = 10,
-        .velocidade_movimento = 90.0f,
+        .velocidade_movimento = 120.0f,
         .raio                 = 14.0f,
         .raio_visual          = 14.0f,
         .cor                  = (Color){ 220,  60,  60, 255 },  /* vermelho */
@@ -40,9 +40,9 @@ const ParametrosInimigo PARAMETROS_INIMIGO[] = {
 
     /* à distância — mantém afastado e atira. */
     {
-        .vida_base            = 20,
+        .vida_base            = 30,
         .dano                 = 8,
-        .velocidade_movimento = 60.0f,
+        .velocidade_movimento = 120.0f,
         .raio                 = 12.0f,
         .raio_visual          = 12.0f,
         .cor                  = (Color){ 240, 140,  40, 255 },  /* laranja */
@@ -54,7 +54,7 @@ const ParametrosInimigo PARAMETROS_INIMIGO[] = {
     {
         .vida_base            = 90,
         .dano                 = 18,
-        .velocidade_movimento = 110.0f,
+        .velocidade_movimento = 160.0f,
         .raio                 = 20.0f,
         .raio_visual          = 20.0f,
         .cor                  = (Color){ 160,  80, 220, 255 },  /* roxo */
@@ -64,7 +64,7 @@ const ParametrosInimigo PARAMETROS_INIMIGO[] = {
 
     /* chefão — encerra a run. Tank com fases por % de vida. */
     {
-        .vida_base            = 1500,
+        .vida_base            = 1000,
         .dano                 = 30,
         .velocidade_movimento = 70.0f,
         .raio                 = 45.0f,
@@ -135,9 +135,9 @@ static float hash_pointer_para_unitario(const void *p) {
  *      "dança" um pouco antes de bater, dando frame extra pro jogador
  *      esquivar e tornando a horda menos previsível. */
 static void ia_chase(Inimigo *i, EstadoJogo *ej) {
-    const float OFFSET_ANG = 0.4f;     /* ±0.4 rad (~±23°) */
-    const float RAIO_TANG  = 220.0f;   /* px — começa a circular abaixo disso */
-    const float PESO_TANG  = 0.55f;    /* intensidade máxima do tangencial */
+    const float OFFSET_ANG = 0.8f;     /* ±0.4 rad (~±23°) */
+    const float RAIO_TANG  = 300.0f;   /* px — começa a circular abaixo disso */
+    const float PESO_TANG  = 0.9f;    /* intensidade máxima do tangencial */
 
     /* Distância e direção até o jogador. */
     float dx = ej->jogador.posicao.x - i->posicao.x;
@@ -206,9 +206,9 @@ static void ia_chase(Inimigo *i, EstadoJogo *ej) {
  * orgânica, sem custo de O(N²), e o push-out de inimigos.c ainda evita
  * sobreposição. Disparo de projétil pelo kiter continua TODO. */
 static void ia_kiter(Inimigo *i, EstadoJogo *ej) {
-    const float DISTANCIA_IDEAL = 240.0f;
-    const float ZONA            =  30.0f;
-    const float PESO_TANG       =   0.6f;
+    const float DISTANCIA_IDEAL = 280.0f;
+    const float ZONA            =  60.0f;
+    const float PESO_TANG       =   1.0f;
 
     float dx = ej->jogador.posicao.x - i->posicao.x;
     float dy = ej->jogador.posicao.y - i->posicao.y;
