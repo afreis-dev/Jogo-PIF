@@ -14,6 +14,12 @@
  *
  * REGRA: Mudou alguma struct aqui? AVISE O GRUPO antes de commitar. Todo
  * mundo depende desse arquivo.
+ *
+ * ATUALIZACAO (engine Arthur): enums Condicao/Efeito reordenados conforme o
+ * GDD; Inimigo/Magia ganharam campos de status; nova lista ProjetilInimigo;
+ * novo MotorProfecia. Numeros de balanceamento NAO ficam aqui — vivem nos
+ * arquivos de conteudo da Luisa (magias_comportamento.c, profecia_efeitos.c,
+ * projeteis_inimigo_tipos.c). Quem indexar nomes em profecia.c atualiza junto.
  * ========================================================================== */
 
 #ifndef TIPOS_H
@@ -34,6 +40,7 @@
 #define FPS_ALVO          60
 
 #define MAX_PROJETEIS     256   /* teto de segurança pra lista de magias */
+#define MAX_PROJETEIS_INIMIGO 256 /* teto da lista de projéteis de inimigo */
 #define MAX_INIMIGOS      128   /* teto de segurança pra lista de inimigos */
 #define MAX_OBSTACULOS     40   /* teto de obstáculos do mapa por run */
 #define CARTAS_POR_ESCOLHA 3    /* quantas cartas aparecem entre ondas */
@@ -56,7 +63,7 @@ typedef enum {
     ESTADO_PAUSA,               /* ESC durante o combate; mundo congelado */
     ESTADO_CARTAS_UPGRADE,      /* a cada minuto: jogador escolhe upgrade */
     ESTADO_GAME_OVER,           /* morreu, mostra score e seed */
-    ESTADO_VITORIA,             /* matou o chefão final aos 15:00 */
+    ESTADO_VITORIA,             /* matou o chefão final aos 5:00 */
     ESTADO_SAIR                 /* sinaliza main pra fechar a janela */
 } EstadoAtual;
 
@@ -92,33 +99,33 @@ typedef enum {
 /* Gatilhos das profecias. "Quando X acontece, dispare o efeito".
  * Dev 3 precisa checar essas condições no loop de combate. */
 typedef enum {
-    COND_AO_ACERTAR,        /* toda vez que magia acerta inimigo */
-    COND_AO_MATAR,          /* quando inimigo morre */
-    COND_VIDA_ABAIXO_50,    /* enquanto HP do jogador < 50% */
-    COND_VIDA_ACIMA_80,     /* enquanto HP do jogador > 80% */
-    COND_A_CADA_5S,         /* timer interno: dispara a cada 5 segundos */
-    COND_EM_CRITICO,        /* quando magia acerta um crítico */
-    COND_NO_DASH,           /* quando jogador usa dash (futuro) */
-    COND_COMBO_X3,          /* combo de 3 kills em sequência */
-    COND_INICIO_ONDA,       /* no começo de cada onda */
-    COND_AO_RECEBER_DANO,   /* quando jogador toma hit */
+    COND_AO_MATAR,          /* inimigo morreu */
+    COND_AO_RECEBER_DANO,   /* jogador tomou hit */
+    COND_A_CADA_10S,        /* timer interno por mod: dispara a cada 10s */
+    COND_EM_COMBO,          /* contador de combo atingiu o limiar */
+    COND_AO_ROLAR_DADO,     /* jogador rolou dado (gancho Sofia/dados) */
+    COND_AO_CURAR,          /* jogador foi curado */
+    COND_PRIMEIRA_HIT,      /* a 1ª magia que acerta na run */
+    COND_VIDA_ABAIXO_X,     /* HP do jogador < X% (X tunável pela Luísa) */
+    COND_AO_ACERTAR,        /* extra renomeável: toda magia que acerta */
+    COND_INICIO_RUN,        /* extra renomeável: uma vez no começo da run */
     COND_TOTAL
 } Condicao;
 
 /* Efeitos que podem ser disparados pelas profecias. */
 typedef enum {
-    EF_EXPLOSAO,            /* dano em área */
-    EF_RAIO_EM_CADEIA,      /* pula entre inimigos */
-    EF_CURA,                /* recupera HP */
-    EF_ESCUDO,              /* bloqueia um hit */
-    EF_VELOCIDADE_MAIS,     /* buff de speed */
-    EF_DANO_MAIS,           /* buff de dano */
-    EF_GERA_ORBE,           /* spawna orbe girando */
-    EF_VENENO,              /* DoT */
-    EF_TELEPORTA,           /* teleporte curto */
-    EF_MULTIPLICA,          /* dobra próximo projétil */
-    EF_LENTIDAO,            /* slow nos inimigos */
-    EF_ROUBO_DE_VIDA,       /* lifesteal */
+    EF_EXPLOSAO,            /* dano em área no contexto */
+    EF_CURA,                /* recupera HP do jogador */
+    EF_DUPLICA_PROJETIL,    /* próximos disparos saem duplicados */
+    EF_CONGELA,             /* congela inimigos */
+    EF_DROPA_DADO,          /* gancho Sofia/dados — no-op seguro por ora */
+    EF_MAIS2_PROX_ROLL,     /* gancho Sofia/dados — no-op seguro por ora */
+    EF_DANO_TRIPLO,         /* próxima hit do jogador triplica */
+    EF_SPAWNA_ALIADO,       /* spawna inimigo fraco aliado temporário */
+    EF_REDUZ_COOLDOWN,      /* reduz cooldown de disparo por um tempo */
+    EF_IGNITE_PASSIVO,      /* aplica DoT (ignite) no alvo */
+    EF_ESCUDO,              /* extra renomeável: anula o próximo hit no jogador */
+    EF_ROUBO_DE_VIDA,       /* extra renomeável: lifesteal por um tempo */
     EF_TOTAL
 } Efeito;
 
@@ -183,6 +190,8 @@ typedef struct {
     float    raio;          /* raio de colisão (preenchido a partir do elemento) */
     Elemento elemento;
     bool     viva;          /* se false, será removida no próximo frame */
+    int      saltos_restantes; /* hops de chain do Relâmpago; 0 = sem chain */
+    bool     ja_acertou;    /* guarda contra reprocessar o mesmo projétil */
 } Magia;
 
 /* Nó da lista encadeada. Cada nó carrega uma Magia e aponta pro próximo. */
@@ -206,12 +215,47 @@ typedef struct {
     TipoInimigo tipo;
     int         recompensa_biomassa; /* quantas biomassas dropa ao morrer */
     bool        vivo;
+
+    /* --- Status aplicado por magias/combos/profecia ---
+     * A engine aplica (colisao.c) e expira (inimigos.c) estes campos. As
+     * MAGNITUDES vivem em magias_comportamento.c / profecia_efeitos.c. */
+    float congelado_tempo;           /* s; >0 zera a velocidade no update */
+    float veneno_tempo;              /* s restantes do DoT */
+    float veneno_dps;                /* dano/s do DoT (escala com stacks) */
+    int   veneno_stacks;             /* stacks ativos (teto tunável) */
+    float veneno_acumulado;          /* acumulador fracionário (não trunca int vida) */
+    float marca_termica_tempo;       /* janela do combo Choque Térmico (marca de Fogo) */
+    float proxima_hit_multiplicador; /* mult. da PRÓXIMA hit recebida (1.0 = normal) */
+    bool  aliado;                    /* spawnado por EF_SPAWNA_ALIADO: não fere o jogador */
+    float vida_aliado_restante;      /* s de vida de um aliado (0 = não expira) */
+    float timer_disparo;             /* cooldown do disparo de projétil deste inimigo */
 } Inimigo;
 
 typedef struct InimigoNo {
     Inimigo            dados;
     struct InimigoNo  *proximo;
 } InimigoNo;
+
+
+/* -------------------- PROJÉTEIS DE INIMIGO (LISTA ENCADEADA) --------------------
+ * Tiro padrão (NÃO-elemental) que inimigos ranged e o chefão disparam no
+ * jogador. Mesma mecânica de lista das magias (malloc/free). Os stats vivem
+ * em projeteis_inimigo_tipos.c — a Luísa tuna por TipoInimigo (nerf/buff,
+ * e futuramente pode torná-lo elemental sem mexer na engine). */
+typedef struct {
+    Vector2 posicao;
+    Vector2 velocidade;
+    float   dano;
+    float   tempo_de_vida;   /* em segundos; some quando chega a 0 */
+    float   raio;
+    Color   cor;
+    bool    vivo;            /* se false, removido no próximo frame */
+} ProjetilInimigo;
+
+typedef struct ProjetilInimigoNo {
+    ProjetilInimigo            dados;
+    struct ProjetilInimigoNo  *proximo;
+} ProjetilInimigoNo;
 
 
 /* -------------------- TABELAS DE PARÂMETROS (DEV 3) --------------------
@@ -246,14 +290,14 @@ typedef struct {
 
 /* -------------------- TIMELINE (CRONOGRAMA + EVENTOS) --------------------
  * O jogo NÃO tem "ondas finitas" no estilo arena clássico. A run inteira é
- * uma timeline contínua de 15 minutos, modelada à la Vampire Survivors:
+ * uma timeline contínua de 5 minutos, modelada à la Vampire Survivors:
  *
  *   - O Cronograma guarda o tempo total decorrido desde o início da run.
  *   - A tabela EVENTOS_CRONOGRAMA[] (em src/sistemas/cronograma_eventos.c)
  *     descreve, declarativamente, "do minuto X ao minuto Y, spawnar inimigos
  *     do tipo T a cada Z segundos". Múltiplos eventos podem estar ativos
  *     ao mesmo tempo (e.g., melee + ranged simultâneos a partir dos 2:00).
- *   - Aos 15:00, a engine spawna 1 chefão e para os outros eventos. Quando
+ *   - Aos 5:00, a engine spawna 1 chefão e para os outros eventos. Quando
  *     o chefão morre, o jogo transiciona pra ESTADO_VITORIA.
  *   - A cada minuto inteiro (1:00, 2:00, …), a tela de cartas abre e o
  *     tempo congela; o jogador escolhe um upgrade e a run continua.
@@ -309,6 +353,30 @@ typedef struct {
     Modificador mods[3];       /* sempre 3 modificadores por profecia */
     unsigned int seed;         /* guardada pra debug e replay */
 } Profecia;
+
+
+/* -------------------- MOTOR DE PROFECIA (RUNTIME) --------------------
+ * Estado vivo que o motor (profecia.c) usa pra avaliar Condições e aplicar
+ * Efeitos durante o combate. Zerado a cada run (jogo_resetar_run). As
+ * MAGNITUDES e LIMIARES ficam em profecia_efeitos.c — a Luísa tuna lá.
+ * -------------------------------------------------------------------- */
+typedef struct {
+    float timer_cond[3];          /* COND_A_CADA_10S: acumulador por mod */
+    float timer_disparo_mod[3];   /* cooldown de auto-fire por mod (era static) */
+    bool  cond_vida_armada[3];    /* debounce de COND_VIDA_ABAIXO_X por mod */
+    int   combo_contador;         /* kills dentro da janela atual */
+    float combo_janela_restante;  /* s restantes da janela de combo */
+    bool  primeira_hit_consumida; /* COND_PRIMEIRA_HIT dispara só 1x por run */
+    bool  inicio_run_disparado;   /* COND_INICIO_RUN dispara só 1x por run */
+    float dano_triplo_proxima;    /* >1 => próxima hit do jogador multiplica */
+    int   duplica_proximos;       /* nº de disparos a duplicar (EF_DUPLICA_PROJETIL) */
+    float escudo_ativo;           /* >0 => próximo hit no jogador é anulado */
+    float roubo_vida_tempo;       /* >0 => dano em inimigo cura o jogador */
+    float reduz_cooldown_tempo;   /* >0 => cooldown de disparo reduzido */
+    bool  em_aplicar_efeito;      /* guard de reentrância no dispatch */
+    int   pending_dado_drop;      /* gancho Sofia/dados: dados a dropar (no-op) */
+    int   pending_bonus_roll;     /* gancho Sofia/dados: +N no próximo roll (no-op) */
+} MotorProfecia;
 
 
 /* -------------------- OBSTÁCULOS DO MAPA (DEV 3) --------------------
@@ -377,10 +445,11 @@ typedef struct {
     EstadoAtual proximo_estado;   /* buffer de transição pra trocar entre frames */
 
     /* --- Entidades principais --- */
-    Jogador     jogador;
-    Profecia    profecia;
-    Cronograma  cronograma;          /* timeline da run (substituiu Onda) */
-    DadosSalvos salvamento;
+    Jogador      jogador;
+    Profecia     profecia;
+    MotorProfecia motor_profecia;    /* runtime do motor de efeitos da profecia */
+    Cronograma   cronograma;         /* timeline da run (substituiu Onda) */
+    DadosSalvos  salvamento;
 
     /* --- Camera 2D ---
      * O jogador vive em um mundo infinito (sem bordas). A câmera segue o
@@ -394,6 +463,7 @@ typedef struct {
      * Começam em NULL = lista vazia. Dev 3 adiciona nós com malloc. */
     MagiaNo   *magias_cabeca;
     InimigoNo *inimigos_cabeca;
+    ProjetilInimigoNo *projeteis_inimigo_cabeca;
 
     /* --- Obstáculos do mapa ---
      * Array fixo populado uma vez no início da run (determinístico a partir
