@@ -135,9 +135,9 @@ static float hash_pointer_para_unitario(const void *p) {
  *      "dança" um pouco antes de bater, dando frame extra pro jogador
  *      esquivar e tornando a horda menos previsível. */
 static void ia_chase(Inimigo *i, EstadoJogo *ej) {
-    const float OFFSET_ANG = 0.4f;     /* ±0.4 rad (~±23°) */
-    const float RAIO_TANG  = 220.0f;   /* px — começa a circular abaixo disso */
-    const float PESO_TANG  = 0.55f;    /* intensidade máxima do tangencial */
+    const float OFFSET_ANG = 0.8f;     /* ±0.4 rad (~±23°) */
+    const float RAIO_TANG  = 300.0f;   /* px — começa a circular abaixo disso */
+    const float PESO_TANG  = 0.9f;    /* intensidade máxima do tangencial */
 
     /* Distância e direção até o jogador. */
     float dx = ej->jogador.posicao.x - i->posicao.x;
@@ -206,9 +206,9 @@ static void ia_chase(Inimigo *i, EstadoJogo *ej) {
  * orgânica, sem custo de O(N²), e o push-out de inimigos.c ainda evita
  * sobreposição. Disparo de projétil pelo kiter continua TODO. */
 static void ia_kiter(Inimigo *i, EstadoJogo *ej) {
-    const float DISTANCIA_IDEAL = 240.0f;
-    const float ZONA            =  30.0f;
-    const float PESO_TANG       =   0.6f;
+    const float DISTANCIA_IDEAL = 280.0f;
+    const float ZONA            =  60.0f;
+    const float PESO_TANG       =   1.0f;
 
     float dx = ej->jogador.posicao.x - i->posicao.x;
     float dy = ej->jogador.posicao.y - i->posicao.y;

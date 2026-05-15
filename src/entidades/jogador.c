@@ -30,7 +30,7 @@ void jogador_inicializar(Jogador *j) {
     j->raio           = 16.0f;
     j->vida_maxima    = 100;
     j->vida           = j->vida_maxima;
-    j->velocidade_movimento = 250.0f;   /* 250 pixels por segundo */
+    j->velocidade_movimento = 200.0f;   /* 250 pixels por segundo */
     j->biomassa       = 0;
     j->bonus_dano     = 0;
 }
